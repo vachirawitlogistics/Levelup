@@ -70,7 +70,7 @@ body {
 .table-container { 
     flex: 1; overflow-y: auto; border-radius: var(--radius-md); background: rgba(255,255,255,0.95); 
     box-shadow: var(--shadow-soft); padding-bottom: 20px; border: 1px solid var(--border-color); 
-    max-height: calc(100vh - 280px); /* เพิ่มเพื่อให้ตารางเลื่อนได้พอดีจอ */
+    max-height: calc(100vh - 280px); 
 }
 
 table { width: 100%; border-collapse: separate; border-spacing: 0; }
@@ -99,9 +99,12 @@ td { padding: 6px 8px !important; vertical-align: middle; border-bottom: 1px sol
 .summary-box.grand-total .text-primary, .summary-box.grand-total .text-muted, .summary-box.grand-total .text-dark { color: #ffffff !important; }
 
 .parent-row { transition: all 0.2s ease; cursor: pointer; }
-.parent-row:hover { background-color: #f8fafc; box-shadow: inset 2px 0 0 var(--primary); }
-.detail-row td { padding: 0 !important; background-color: #fafbfc; border-bottom: none; }
+.parent-row:hover { filter: brightness(0.97); box-shadow: inset 3px 0 0 var(--primary); }
+.detail-row td { padding: 0 !important; border-bottom: none; }
 .detail-card { background: #ffffff; border: 1px solid #e2e8f0; border-radius: var(--radius-sm); margin: 4px 8px 12px 30px; box-shadow: inset 0 2px 4px rgba(0,0,0,0.02); padding: 12px !important; }
+
+.stripe-odd { background-color: #f8fafc !important; }
+.stripe-even { background-color: #ffffff !important; }
 
 .form-control, .form-select { border-radius: var(--radius-sm); padding: 6px 10px; border: 1.5px solid var(--border-color); background-color: #f8fafc; transition: all 0.3s; font-size: 0.8rem; }
 .form-control:focus, .form-select:focus { border-color: var(--primary); background-color: #fff; box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1); }
@@ -123,15 +126,7 @@ td { padding: 6px 8px !important; vertical-align: middle; border-bottom: 1px sol
 .slide-up { animation: slideUp 0.6s ease forwards; }
 @keyframes slideUp { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
 
-.table-hover tbody tr:hover { background-color: #f8fafc; transform: scale(1.001); box-shadow: 0 2px 5px rgba(0,0,0,0.05); position: relative; z-index: 2; }
-.row-assigned { background-color: #f0fdf4 !important; }
-.row-finished { background-color: #f5f3ff !important; } 
-.row-billed { background-color: #f1f5f9 !important; opacity: 0.8; } 
+.table-hover tbody tr:hover { transform: scale(1.001); box-shadow: 0 2px 5px rgba(0,0,0,0.05); position: relative; z-index: 2; }
 
-.sticky-col-right { position: sticky !important; right: 0; z-index: 5; box-shadow: -3px 0 6px rgba(0,0,0,0.08); }
-tbody tr .sticky-col-right { background-color: #ffffff; transition: background-color 0.2s ease; }
-tbody tr.row-assigned .sticky-col-right { background-color: #f0fdf4; }
-tbody tr.row-finished .sticky-col-right { background-color: #f5f3ff; }
-tbody tr.row-billed .sticky-col-right { background-color: #f1f5f9; }
-.table-hover tbody tr:hover .sticky-col-right { background-color: #f8fafc !important; }
+.sticky-col-right { position: sticky !important; right: 0; z-index: 5; box-shadow: -3px 0 6px rgba(0,0,0,0.08); background-color: inherit; }
 thead th.sticky-col-right { background-color: #f8fafc !important; z-index: 11 !important; }

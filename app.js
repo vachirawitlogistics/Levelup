@@ -56,6 +56,10 @@ window.onload = function() {
         });
     }
 
+    let currentMonth = String(new Date().getMonth() + 1).padStart(2, '0');
+    if (document.getElementById('filterMonth')) document.getElementById('filterMonth').value = currentMonth;
+    if (document.getElementById('hFilterMonth')) document.getElementById('hFilterMonth').value = currentMonth;
+
     const storedUser = localStorage.getItem('sysUser'); 
     const loginTime = localStorage.getItem('loginTimestamp');
     
@@ -161,18 +165,27 @@ function startBackgroundSync() {
 async function loadPlanDataInitial() {
     showGlobalLoader('กำลังดึงฐานข้อมูลจาก Supabase...');
     try {
-        const [bRes, cRes, sRes, fRes] = await Promise.all([
-            supabaseClient.from('plan_data').select('*').order('booking_date', { ascending: false }),
+        let allPlanData = [];
+        let from = 0;
+        const step = 1000;
+        
+        while (true) {
+            const { data: chunk, error: bResError } = await supabaseClient.from('plan_data').select('*').order('booking_date', { ascending: false }).range(from, from + step - 1);
+            if (bResError) throw bResError;
+            allPlanData = allPlanData.concat(chunk);
+            if (chunk.length < step) break;
+            from += step;
+        }
+
+        const [cRes, sRes, fRes] = await Promise.all([
             supabaseClient.from('customer').select('*'),
             supabaseClient.from('agent').select('agent'),
             supabaseClient.from('fuel').select('*').order('price_date', { ascending: false })
         ]);
 
-        if (bRes.error) throw bRes.error;
-
         const headerRow = ['Date','CS','Type','Mode','Customer','Load Place','Booking No','CY Place','CY Date','VGM','RTN Place','RTN Date','Closing Time','Agent','Remark','Status','Plate','Price','Exp1','Exp2','Exp3','Exp4','Exp5','Container No','Exp6','Exp7','Exp8','Exp9','Exp10Name','Exp10Val','Exp11Name','Exp11Val','InvoiceNo','EditLog','BillTo','ReceiptName','ID'];
         
-        let dataRows = (bRes.data || []).map(row => [
+        let dataRows = allPlanData.map(row => [
             row.booking_date, row.cs, row.container_type, row.mode, row.customer, row.load_place, row.booking,
             row.cy_place, row.cy_date, row.vgm, row.rtn_place, row.rtn_date, row.closing_time,
             row.agent, row.comment, row.status, row.vehicle_plate, row.price,
@@ -213,11 +226,20 @@ async function loadPlanDataInitial() {
 
 async function loadPlanData(silent = false) {
     try {
-        const { data, error } = await supabaseClient.from('plan_data').select('*').order('booking_date', { ascending: false });
-        if (error) throw error;
+        let fetchedData = [];
+        let from = 0;
+        const step = 1000;
+        
+        while (true) {
+            const { data: chunk, error } = await supabaseClient.from('plan_data').select('*').order('booking_date', { ascending: false }).range(from, from + step - 1);
+            if (error) throw error;
+            fetchedData = fetchedData.concat(chunk);
+            if (chunk.length < step) break;
+            from += step;
+        }
 
         const headerRow = ['Date','CS','Type','Mode','Customer','Load Place','Booking No','CY Place','CY Date','VGM','RTN Place','RTN Date','Closing Time','Agent','Remark','Status','Plate','Price','Exp1','Exp2','Exp3','Exp4','Exp5','Container No','Exp6','Exp7','Exp8','Exp9','Exp10Name','Exp10Val','Exp11Name','Exp11Val','InvoiceNo','EditLog','BillTo','ReceiptName','ID'];
-        let dataRows = (data || []).map(row => [
+        let dataRows = fetchedData.map(row => [
             row.booking_date, row.cs, row.container_type, row.mode, row.customer, row.load_place, row.booking,
             row.cy_place, row.cy_date, row.vgm, row.rtn_place, row.rtn_date, row.closing_time,
             row.agent, row.comment, row.status, row.vehicle_plate, row.price,
@@ -350,12 +372,13 @@ function renderTable(dataArray) {
     let startIdx = 1 + ((currentPage - 1) * limit); let endIdx = Math.min(startIdx + limit, dataArray.length);
 
     let tbody = '';
+    let rowCount = 0;
+    
     for (let i = startIdx; i < endIdx; i++) {
         let row = dataArray[i]; let rowNum = row[row.length - 1]; let status = row[15] || '';
-        let rowClass = '';
-        if (RUNNING_STATUSES.includes(status)) rowClass = 'row-assigned';
-        else if (status === 'จบงานรอวางบิล' || status === 'พร้อมวางบิล') rowClass = 'row-finished';
-        else if (status === 'วางบิลแล้ว') rowClass = 'row-billed';
+        
+        rowCount++;
+        let rowClass = (rowCount % 2 !== 0) ? 'bg-light' : 'bg-white';
         
         tbody += `<tr class="${rowClass} table-row-animate" onclick="openEditModal('${rowNum}')" style="cursor: pointer;">`;
         for (let colIdx of displayCols) { 

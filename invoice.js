@@ -1,4 +1,4 @@
-const INV_API_URL = 'https://script.google.com/macros/s/AKfycbwuxND1GoxhhH-UUnvFBwVO8kOE49cTLiRbklIvZTmV3s_Fbjj997Ls68fMW17TXi41/exec';
+const INV_API_URL = 'https://script.google.com/macros/s/AKfycbxeIxE_bitLEr193oQxgMy6FjMQJGZV2B8gznP3jl1SN7ubVvifRXJMQKDBIUfbwVSn/exec';
 
 let rawBillingData = [], auditData = [], readyData = [], bkgTotalsGlobal = {};
 let filteredAudit = [], filteredReady = [], groupedReadyGlobal = {};
@@ -59,15 +59,36 @@ async function loadBillingData(isLogin = false, forceSync = false) {
     if (!forceSync && rawBillingData.length > 0) { applyFilterAudit(); applyFilterReady(); return; }
     if (typeof showGlobalLoader === 'function') showGlobalLoader('กำลังโหลดข้อมูลวางบิลจาก Supabase...');
     try {
-        const { data, error } = await supabaseClient.from('plan_data').select('*').in('status', ['จบงานรอวางบิล', 'พร้อมวางบิล']).order('created_at', { ascending: false });
-        if (error) throw error;
+        let fetchedBilling = [];
+        let from = 0;
+        const step = 1000;
+        
+        while (true) {
+            const { data: chunk, error } = await supabaseClient.from('plan_data').select('*').in('status', ['จบงานรอวางบิล', 'พร้อมวางบิล']).order('created_at', { ascending: false }).range(from, from + step - 1);
+            if (error) throw error;
+            fetchedBilling = fetchedBilling.concat(chunk);
+            if (chunk.length < step) break;
+            from += step;
+        }
 
-        const { data: allBkgData } = await supabaseClient.from('plan_data').select('booking');
+        let allBkgDataList = [];
+        let bkgFrom = 0;
+        while (true) {
+            const { data: bkgChunk, error: bkgErr } = await supabaseClient.from('plan_data').select('booking').range(bkgFrom, bkgFrom + step - 1);
+            if (bkgErr) throw bkgErr;
+            allBkgDataList = allBkgDataList.concat(bkgChunk);
+            if (bkgChunk.length < step) break;
+            bkgFrom += step;
+        }
+
         bkgTotalsGlobal = {};
-        if (allBkgData) allBkgData.forEach(r => { if (r.booking) bkgTotalsGlobal[r.booking] = (bkgTotalsGlobal[r.booking] || 0) + 1; });
+        if (allBkgDataList) {
+            allBkgDataList.forEach(r => { if (r.booking) bkgTotalsGlobal[r.booking] = (bkgTotalsGlobal[r.booking] || 0) + 1; });
+        }
 
         rawBillingData = [[]]; auditData = []; readyData = [];
-        (data || []).forEach(row => {
+        
+        fetchedBilling.forEach(row => {
             let r = [
                 row.booking_date, row.cs, row.container_type, row.mode, row.customer, row.load_place, row.booking,
                 row.cy_place, row.cy_date, row.vgm, row.rtn_place, row.rtn_date, row.closing_time,
@@ -77,6 +98,7 @@ async function loadBillingData(isLogin = false, forceSync = false) {
                 row.other_exp_name_2, row.other_exp_amt_2, row.invoice_no, row.history_edit, row.bill_to_name, row['ชื่อออกใบเสร็จ'], row.id 
             ];
             rawBillingData.push(r);
+            
             let price = parseFloat(r[17]) || 0;
             let ext1 = parseFloat(r[20]) || 0, ext2 = parseFloat(r[21]) || 0, ext3 = parseFloat(r[22]) || 0;
             let adv1 = parseFloat(r[18]) || 0, adv2 = parseFloat(r[19]) || 0;
@@ -161,14 +183,17 @@ function renderAuditTab() {
     let limitVal = document.getElementById('limitA') ? document.getElementById('limitA').value : 'ALL';
     if (limitVal !== 'ALL') bkgKeys = bkgKeys.slice(0, parseInt(limitVal));
 
+    let stripeIdx = 0;
     for (let bkg of bkgKeys) {
         let group = grouped[bkg];
         let dateStr = ""; try { dateStr = new Date(group.date).toLocaleDateString('en-GB'); } catch (e) { dateStr = group.date; }
         let totalInSystem = bkgTotalsGlobal[bkg] || group.items.length;
         let badgeClass = group.items.length < totalInSystem ? 'bg-warning bg-opacity-25 text-warning border border-warning' : 'bg-secondary bg-opacity-10 text-secondary';
         let safeBkg = 'bkg_' + bkg.replace(/[^a-zA-Z0-9]/g, '_');
+        let rowStripeClass = (stripeIdx % 2 !== 0) ? 'bg-light' : 'bg-white';
+        stripeIdx++;
 
-        html += `<tr class="parent-row bg-white" onclick="toggleDetailA('${safeBkg}')">
+        html += `<tr class="parent-row ${rowStripeClass}" onclick="toggleDetailA('${safeBkg}')">
             <td class="text-center align-middle" onclick="event.stopPropagation();"><input type="checkbox" class="bkg-check-a form-check-input shadow-sm" data-bkg="${bkg}" data-safebkg="${safeBkg}" style="width:1.2em; height:1.2em;" onclick="toggleBookingA(this, '${safeBkg}')"></td>
             <td><i class="bi bi-chevron-right ms-1 me-2 text-primary fw-bold" id="icon-a-${safeBkg}" style="font-size:0.8rem; transition:0.3s;"></i> ${dateStr}</td>
             <td class="text-secondary fw-medium">${group.cs || '-'}</td><td class="fw-bold text-dark">${group.customer || '-'}</td><td class="fw-bold text-primary">${bkg}</td>
@@ -319,14 +344,17 @@ function renderReadyTab() {
     let limitVal = document.getElementById('limitR') ? document.getElementById('limitR').value : 'ALL';
     if (limitVal !== 'ALL') bkgKeys = bkgKeys.slice(0, parseInt(limitVal));
 
+    let stripeIdx = 0;
     for (let bkg of bkgKeys) {
         let group = groupedReadyGlobal[bkg];
         let dateStr = ""; try { dateStr = new Date(group.date).toLocaleDateString('en-GB'); } catch (e) { dateStr = group.date; }
         let totalInSystem = bkgTotalsGlobal[bkg] || group.items.length;
         let badgeClass = group.items.length < totalInSystem ? 'bg-warning bg-opacity-25 text-warning border border-warning' : 'bg-secondary bg-opacity-10 text-secondary';
         let safeBkg = 'bkg_' + bkg.replace(/[^a-zA-Z0-9]/g, '_');
+        let rowStripeClass = (stripeIdx % 2 !== 0) ? 'bg-light' : 'bg-white';
+        stripeIdx++;
 
-        html += `<tr class="parent-row bg-white" onclick="toggleDetailR('${safeBkg}')">
+        html += `<tr class="parent-row ${rowStripeClass}" onclick="toggleDetailR('${safeBkg}')">
             <td class="text-center align-middle" onclick="event.stopPropagation();"><input type="checkbox" class="bkg-check-r form-check-input shadow-sm" value="${bkg}" data-safebkg="${safeBkg}" onchange="calcSummaryR()" style="width:1.2em; height:1.2em;"></td>
             <td><i class="bi bi-chevron-right ms-1 me-2 text-primary fw-bold" id="icon-r-${safeBkg}" style="font-size:0.8rem; transition:0.3s;"></i> ${dateStr}</td>
             <td class="fw-bold text-dark">${group.customer || '-'}</td><td class="fw-bold text-primary">${bkg}</td>
@@ -461,10 +489,19 @@ async function confirmGeneratePDF() {
 async function loadHistory(forceSync = false) {
     document.getElementById('historyBody').innerHTML = '<tr><td colspan="7" class="text-center py-5 text-primary"><div class="spinner-border spinner-border-sm me-2"></div>กำลังโหลดประวัติ...</td></tr>';
     try {
-        const { data, error } = await supabaseClient.from('invoice_data').select('*').order('invoice_no', { ascending: false });
-        if (error) throw error;
+        let historyDataList = [];
+        let hFrom = 0;
+        const step = 1000;
+        while (true) {
+            const { data: chunk, error } = await supabaseClient.from('invoice_data').select('*').order('invoice_no', { ascending: false }).range(hFrom, hFrom + step - 1);
+            if (error) throw error;
+            historyDataList = historyDataList.concat(chunk);
+            if (chunk.length < step) break;
+            hFrom += step;
+        }
+        
         let grouped = {};
-        (data || []).forEach(r => {
+        historyDataList.forEach(r => {
             let invNo = r.invoice_no; if (!invNo) return;
             if (!grouped[invNo]) { grouped[invNo] = { invoiceNo: invNo, cs: r.cs || '-', customer: r.customer || '-', date: r.bill_date || r.create_date || r.created_at, totalAmount: 0, count: 0, billingUser: r.user_action || 'Admin', receiptNo: r.receive_no || '', voucherNo: r.voucher_no || '' }; }
             grouped[invNo].totalAmount += (parseFloat(r.grand_total) || 0); grouped[invNo].count++;
@@ -526,6 +563,8 @@ function renderHistoryTable() {
     else {
         let limitVal = document.getElementById('limitH') ? document.getElementById('limitH').value : 'ALL';
         let dataToRender = limitVal !== 'ALL' ? filteredHistoryData.slice(0, parseInt(limitVal)) : filteredHistoryData;
+        let stripeIdx = 0;
+        
         dataToRender.forEach((r) => {
             let dateStr = ""; try { dateStr = new Date(r.date).toLocaleDateString('en-GB'); } catch (e) { dateStr = r.date; }
             let isOwnerOrAdmin = true; let docStatusStr = ''; let menuItems = '';
@@ -556,8 +595,11 @@ function renderHistoryTable() {
 
             let displayStatusBadge = docStatusStr ? `<br><div class="mt-1">${docStatusStr}</div>` : '';
             let quickViewLink = `<a href="javascript:void(0);" onclick="viewInvoiceDetails('${r.invoiceNo}')" class="text-primary fw-bold text-decoration-none"><i class="bi bi-info-circle-fill me-1 opacity-50"></i>${r.invoiceNo}</a>`;
+            
+            let rowStripeClass = (stripeIdx % 2 !== 0) ? 'bg-light' : 'bg-white';
+            stripeIdx++;
 
-            html += `<tr><td class="px-3">${quickViewLink}${displayStatusBadge}</td><td class="text-muted fw-medium">${dateStr}</td><td class="text-secondary fw-medium">${r.cs}</td><td class="fw-bold text-dark">${r.customer}</td><td class="text-center"><span class="badge bg-light text-dark border rounded-pill px-3 shadow-sm">${r.count}</span></td><td class="text-end fw-bold text-primary fs-6">฿${r.totalAmount.toLocaleString(undefined, {minimumFractionDigits:2})}</td><td class="text-center pe-4"><div class="btn-group dropstart"><button type="button" class="btn btn-white border shadow-sm btn-sm fw-bold dropdown-toggle dropdown-toggle-split rounded-pill px-3 text-secondary" data-bs-toggle="dropdown"><i class="bi bi-three-dots"></i></button><ul class="dropdown-menu shadow-lg border-0 py-1">${menuItems}</ul></div></td></tr>`;
+            html += `<tr class="${rowStripeClass}"><td class="px-3">${quickViewLink}${displayStatusBadge}</td><td class="text-muted fw-medium">${dateStr}</td><td class="text-secondary fw-medium">${r.cs}</td><td class="fw-bold text-dark">${r.customer}</td><td class="text-center"><span class="badge bg-light text-dark border rounded-pill px-3 shadow-sm">${r.count}</span></td><td class="text-end fw-bold text-primary fs-6">฿${r.totalAmount.toLocaleString(undefined, {minimumFractionDigits:2})}</td><td class="text-center pe-4"><div class="btn-group dropstart"><button type="button" class="btn btn-white border shadow-sm btn-sm fw-bold dropdown-toggle dropdown-toggle-split rounded-pill px-3 text-secondary" data-bs-toggle="dropdown"><i class="bi bi-three-dots"></i></button><ul class="dropdown-menu shadow-lg border-0 py-1">${menuItems}</ul></div></td></tr>`;
         });
     }
     document.getElementById('historyBody').innerHTML = html;
@@ -586,9 +628,17 @@ async function openEditInvoiceModal(invoiceNo) {
 
         let html = '';
         data.forEach((itm) => {
+            let d = new Date(itm.create_date); let factoryDate = !isNaN(d.getTime()) ? d.toISOString().split('T')[0] : '';
+            
             html += `<div class="card shadow-sm border border-light mb-2 edit-item-card rounded-3 overflow-hidden p-0" data-booking="${itm.booking}" data-container="${itm.container_no}" data-rowid="${itm.id}">
-                <div class="card-header bg-white border-bottom py-1"><h6 class="fw-bold text-dark mb-0 fs-6"><i class="bi bi-box-seam me-2 text-primary"></i>${itm.container_no} <span class="badge bg-light text-secondary border fw-medium ms-2">BKG: ${itm.booking}</span></h6></div>
-                <div class="card-body bg-light p-2"><div class="row g-2"><div class="col-md-6 border-end border-light"><p class="text-success fw-bold small mb-1"><i class="bi bi-arrow-up-right-circle me-1"></i>รายได้ (Income)</p><div class="row g-1"><div class="col-6"><label class="small text-muted mb-0" style="font-size: 0.7rem;">ราคาเที่ยว</label><input type="number" class="form-control form-control-sm bg-white e-price" value="${itm.price || 0}"></div><div class="col-6"><label class="small text-muted mb-0" style="font-size: 0.7rem;">ต่อระยะ</label><input type="number" class="form-control form-control-sm bg-white e-ext1" value="${itm.extender || 0}"></div><div class="col-6"><label class="small text-muted mb-0" style="font-size: 0.7rem;">ค้างหาง</label><input type="number" class="form-control form-control-sm bg-white e-ext2" value="${itm.drop_tail || 0}"></div><div class="col-6"><label class="small text-muted mb-0" style="font-size: 0.7rem;">เสียเวลา</label><input type="number" class="form-control form-control-sm bg-white e-ext3" value="${itm.lose_time || 0}"></div></div></div>
+                <div class="card-header bg-white border-bottom py-2 d-flex justify-content-between align-items-center"><h6 class="fw-bold text-dark mb-0 fs-6"><i class="bi bi-box-seam me-2 text-primary"></i>ข้อมูลตู้เดิม: <span class="text-primary">${itm.container_no}</span> <span class="badge bg-light text-secondary border fw-medium ms-2">BKG: ${itm.booking}</span></h6></div>
+                <div class="card-body bg-light p-2">
+                    <div class="row g-2 mb-2 pb-2 border-bottom border-secondary border-opacity-25">
+                        <div class="col-md-4"><label class="small text-muted fw-bold mb-0">วันที่เข้าโรงงาน</label><input type="date" class="form-control form-control-sm bg-white e-date border-secondary" value="${factoryDate}"></div>
+                        <div class="col-md-4"><label class="small text-muted fw-bold mb-0">เบอร์ตู้</label><input type="text" class="form-control form-control-sm bg-white e-container border-secondary" value="${itm.container_no}"></div>
+                        <div class="col-md-4"><label class="small text-muted fw-bold mb-0">ทะเบียนรถ</label><input type="text" class="form-control form-control-sm bg-white e-plate border-secondary" value="${itm.vehicle_plate || ''}"></div>
+                    </div>
+                    <div class="row g-2"><div class="col-md-6 border-end border-light"><p class="text-success fw-bold small mb-1"><i class="bi bi-arrow-up-right-circle me-1"></i>รายได้ (Income)</p><div class="row g-1"><div class="col-6"><label class="small text-muted mb-0" style="font-size: 0.7rem;">ราคาเที่ยว</label><input type="number" class="form-control form-control-sm bg-white e-price" value="${itm.price || 0}"></div><div class="col-6"><label class="small text-muted mb-0" style="font-size: 0.7rem;">ต่อระยะ</label><input type="number" class="form-control form-control-sm bg-white e-ext1" value="${itm.extender || 0}"></div><div class="col-6"><label class="small text-muted mb-0" style="font-size: 0.7rem;">ค้างหาง</label><input type="number" class="form-control form-control-sm bg-white e-ext2" value="${itm.drop_tail || 0}"></div><div class="col-6"><label class="small text-muted mb-0" style="font-size: 0.7rem;">เสียเวลา</label><input type="number" class="form-control form-control-sm bg-white e-ext3" value="${itm.lose_time || 0}"></div></div></div>
                 <div class="col-md-6"><p class="text-danger fw-bold small mb-1"><i class="bi bi-arrow-down-right-circle me-1"></i>สำรองจ่าย (Advance)</p><div class="row g-1"><div class="col-4"><label class="small text-muted mb-0" style="font-size: 0.7rem;">รับตู้</label><input type="number" class="form-control form-control-sm bg-white e-adv1" value="${itm.receive || 0}"></div><div class="col-4"><label class="small text-muted mb-0" style="font-size: 0.7rem;">คืนตู้</label><input type="number" class="form-control form-control-sm bg-white e-adv2" value="${itm.return || 0}"></div><div class="col-4"><label class="small text-muted mb-0" style="font-size: 0.7rem;">ผ่านท่า</label><input type="number" class="form-control form-control-sm bg-white e-adv3" value="${itm.terminal_charge || 0}"></div><div class="col-4"><label class="small text-muted mb-0" style="font-size: 0.7rem;">ซ่อมตู้</label><input type="number" class="form-control form-control-sm bg-white e-adv4" value="${itm.repair || 0}"></div><div class="col-4"><label class="small text-muted mb-0" style="font-size: 0.7rem;">ล้างตู้</label><input type="number" class="form-control form-control-sm bg-white e-adv5" value="${itm.cleaning || 0}"></div><div class="col-4"><label class="small text-primary fw-bold mb-0" style="font-size: 0.7rem;">ค่าชอ</label><input type="number" class="form-control form-control-sm border-primary bg-primary bg-opacity-10 e-adv6" value="${itm.shore || 0}"></div><div class="col-12 m-0"><hr class="m-0 opacity-25"></div><div class="col-8 mt-1"><label class="small text-muted mb-0" style="font-size: 0.7rem;">ยอดอื่น 1 (ชื่อ)</label><input type="text" class="form-control form-control-sm bg-white e-extn1" value="${itm.other_exp_name_1 || ''}"></div><div class="col-4 mt-1"><label class="small text-muted mb-0" style="font-size: 0.7rem;">ยอด</label><input type="number" class="form-control form-control-sm bg-white e-extv1" value="${itm.other_exp_amt_1 || 0}"></div></div></div></div></div></div>`;
         });
         document.getElementById('editItemsContainer').innerHTML = html;
@@ -601,7 +651,7 @@ async function confirmEditInvoice() {
     let invNo = document.getElementById('editInvNo').value; let invDate = document.getElementById('editInvDate').value; let customer = document.getElementById('editCustomer').value.trim(); let isSplit = document.getElementById('editIsSplit').checked;
     if (!invDate || !customer) return Swal.fire({ icon: 'warning', text: 'กรุณาระบุวันที่และชื่อลูกค้า' });
 
-    Swal.fire({ title: 'ยืนยันการอัปเดต?', text: "ระบบจะสร้าง PDF ใบใหม่ทับของเดิม", icon: 'warning', showCancelButton: true, confirmButtonColor: '#1e293b', confirmButtonText: 'ยืนยันอัปเดต', cancelButtonText: 'ยกเลิก'
+    Swal.fire({ title: 'ยืนยันการอัปเดต?', text: "ระบบจะอัปเดตข้อมูลตู้และสร้าง PDF ใบใหม่ทับของเดิม", icon: 'warning', showCancelButton: true, confirmButtonColor: '#1e293b', confirmButtonText: 'ยืนยันอัปเดต', cancelButtonText: 'ยกเลิก'
     }).then(async (result) => {
         if (result.isConfirmed) {
             if (typeof showGlobalLoader === 'function') showGlobalLoader('กำลังบันทึกและสร้างเอกสารใหม่...');
@@ -612,10 +662,16 @@ async function confirmEditInvoice() {
                 const { data: custData } = await supabaseClient.from('customer').select('*').eq('full_name', customer).maybeSingle();
                 let custInfoToSend = { officialName: custData ? custData.full_name : customer, address: custData && custData.address ? custData.address : "", taxId: custData && custData.tax_id ? String(custData.tax_id) : "", creditDays: custData && custData.credit_days ? parseInt(custData.credit_days) : 0 };
 
-                let payload = []; let insertPayload = []; let cards = document.querySelectorAll('.edit-item-card');
+                let payload = []; let insertPayload = []; let planUpdates = []; let cards = document.querySelectorAll('.edit-item-card');
+                
                 cards.forEach(card => {
-                    let booking = card.getAttribute('data-booking'); let container = card.getAttribute('data-container');
-                    let oldItem = oldData.find(o => o.booking === booking && o.container_no === container) || {};
+                    let booking = card.getAttribute('data-booking'); 
+                    let origContainer = card.getAttribute('data-container');
+                    let oldItem = oldData.find(o => o.booking === booking && o.container_no === origContainer) || {};
+
+                    let cDate = card.querySelector('.e-date').value;
+                    let cContainer = card.querySelector('.e-container').value.trim() || origContainer;
+                    let cPlate = card.querySelector('.e-plate').value.trim() || '-';
 
                     let p = parseFloat(card.querySelector('.e-price').value) || 0, e1 = parseFloat(card.querySelector('.e-ext1').value) || 0, e2 = parseFloat(card.querySelector('.e-ext2').value) || 0, e3 = parseFloat(card.querySelector('.e-ext3').value) || 0;
                     let a1 = parseFloat(card.querySelector('.e-adv1').value) || 0, a2 = parseFloat(card.querySelector('.e-adv2').value) || 0, a3 = parseFloat(card.querySelector('.e-adv3').value) || 0, a4 = parseFloat(card.querySelector('.e-adv4').value) || 0, a5 = parseFloat(card.querySelector('.e-adv5').value) || 0, a6 = parseFloat(card.querySelector('.e-adv6').value) || 0;
@@ -623,12 +679,21 @@ async function confirmEditInvoice() {
 
                     let incTot = p + e1 + e2 + e3; let advTot = a1 + a2 + a3 + a4 + a5 + a6 + v1;
 
-                    payload.push({ rowIdx: oldItem.id, jobCustomer: oldItem.customer, customer: customer, booking: booking, date: oldItem.create_date, plate: oldItem.vehicle_plate || '-', cy: oldItem.cy_place || '-', load: oldItem.load_place || '-', rtn: oldItem.rtn_place || '-', type: oldItem.container_type || '-', container: container, remark: oldItem.comment || '', price: p, adv1: a1, adv2: a2, adv6: a3, ext1: e1, ext2: e2, ext3: e3, adv4: a4, adv5: a5, adv9: a6, incTotal: incTot, advTotal: advTot, grandTotal: incTot + advTot });
+                    payload.push({ rowIdx: oldItem.id, jobCustomer: oldItem.customer, customer: customer, booking: booking, date: cDate || null, plate: cPlate, cy: oldItem.cy_place || '-', load: oldItem.load_place || '-', rtn: oldItem.rtn_place || '-', type: oldItem.container_type || '-', container: cContainer, remark: oldItem.comment || '', price: p, adv1: a1, adv2: a2, adv6: a3, ext1: e1, ext2: e2, ext3: e3, adv4: a4, adv5: a5, adv9: a6, incTotal: incTot, advTotal: advTot, grandTotal: incTot + advTot });
 
                     let { id, ...oldItemWithoutId } = oldItem; 
-                    insertPayload.push({ ...oldItemWithoutId, customer: customer, bill_date: invDate, price: p, extender: e1, drop_tail: e2, lose_time: e3, receive: a1, return: a2, terminal_charge: a3, repair: String(a4), cleaning: a5, shore: a6, other_exp_name_1: n1, other_exp_amt_1: v1, total_income: incTot, total_advance: String(advTot), grand_total: incTot + advTot, user_action: currentUser });
+                    insertPayload.push({ ...oldItemWithoutId, customer: customer, bill_date: invDate, create_date: cDate || null, container_no: cContainer, vehicle_plate: cPlate, price: p, extender: e1, drop_tail: e2, lose_time: e3, receive: a1, return: a2, terminal_charge: a3, repair: String(a4), cleaning: a5, shore: a6, other_exp_name_1: n1, other_exp_amt_1: v1, total_income: incTot, total_advance: String(advTot), grand_total: incTot + advTot, user_action: currentUser });
+
+                    planUpdates.push(
+                        supabaseClient.from('plan_data')
+                        .update({ container_no: cContainer, vehicle_plate: cPlate, booking_date: cDate || null })
+                        .eq('invoice_no', invNo)
+                        .eq('booking', booking)
+                        .eq('container_no', origContainer)
+                    );
                 });
 
+                await Promise.all(planUpdates);
                 await callInvAPI('rollbackInvoice', { invoiceNo: invNo }, 1, false);
                 const res = await callInvAPI('generateInvoicePDF', { payload: payload, invoiceDate: invDate, billingUser: currentUser, isSplit: isSplit, customInvNo: invNo, custInfo: custInfoToSend }, 1, false);
                 
