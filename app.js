@@ -170,7 +170,12 @@ async function loadPlanDataInitial() {
         const step = 1000;
         
         while (true) {
-            const { data: chunk, error: bResError } = await supabaseClient.from('plan_data').select('*').order('booking_date', { ascending: false }).range(from, from + step - 1);
+            const { data: chunk, error: bResError } = await supabaseClient.from('plan_data')
+                .select('*')
+                .order('booking_date', { ascending: false })
+                .order('id', { ascending: true }) 
+                .range(from, from + step - 1);
+            
             if (bResError) throw bResError;
             allPlanData = allPlanData.concat(chunk);
             if (chunk.length < step) break;
@@ -231,7 +236,11 @@ async function loadPlanData(silent = false) {
         const step = 1000;
         
         while (true) {
-            const { data: chunk, error } = await supabaseClient.from('plan_data').select('*').order('booking_date', { ascending: false }).range(from, from + step - 1);
+            const { data: chunk, error } = await supabaseClient.from('plan_data')
+                .select('*')
+                .order('booking_date', { ascending: false })
+                .order('id', { ascending: true }) 
+                .range(from, from + step - 1);
             if (error) throw error;
             fetchedData = fetchedData.concat(chunk);
             if (chunk.length < step) break;

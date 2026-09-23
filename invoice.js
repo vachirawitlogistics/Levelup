@@ -51,7 +51,6 @@ document.querySelectorAll('#pills-tab button').forEach(btn => {
         if (event.target.id === 'tab-history') event.target.classList.add('active-history');
         document.querySelectorAll('#module-invoice .tab-pane').forEach(pane => { pane.classList.remove('show', 'active'); pane.style.display = 'none'; });
         const targetPane = document.querySelector(event.target.getAttribute('data-bs-target'));
-        // แก้ไขบรรทัดนี้จาก 'block' เป็น 'flex' เพื่อให้ตารางยืดความสูงเต็มพื้นที่เสมอ
         if (targetPane) { targetPane.classList.add('show', 'active'); targetPane.style.display = 'flex'; }
     });
 });
@@ -65,7 +64,12 @@ async function loadBillingData(isLogin = false, forceSync = false) {
         const step = 1000;
         
         while (true) {
-            const { data: chunk, error } = await supabaseClient.from('plan_data').select('*').in('status', ['จบงานรอวางบิล', 'พร้อมวางบิล']).order('created_at', { ascending: false }).range(from, from + step - 1);
+            const { data: chunk, error } = await supabaseClient.from('plan_data')
+                .select('*')
+                .in('status', ['จบงานรอวางบิล', 'พร้อมวางบิล'])
+                .order('booking_date', { ascending: false })
+                .order('id', { ascending: true })
+                .range(from, from + step - 1);
             if (error) throw error;
             fetchedBilling = fetchedBilling.concat(chunk);
             if (chunk.length < step) break;
@@ -75,7 +79,9 @@ async function loadBillingData(isLogin = false, forceSync = false) {
         let allBkgDataList = [];
         let bkgFrom = 0;
         while (true) {
-            const { data: bkgChunk, error: bkgErr } = await supabaseClient.from('plan_data').select('booking').range(bkgFrom, bkgFrom + step - 1);
+            const { data: bkgChunk, error: bkgErr } = await supabaseClient.from('plan_data')
+                .select('booking')
+                .range(bkgFrom, bkgFrom + step - 1);
             if (bkgErr) throw bkgErr;
             allBkgDataList = allBkgDataList.concat(bkgChunk);
             if (bkgChunk.length < step) break;
@@ -494,7 +500,11 @@ async function loadHistory(forceSync = false) {
         let hFrom = 0;
         const step = 1000;
         while (true) {
-            const { data: chunk, error } = await supabaseClient.from('invoice_data').select('*').order('invoice_no', { ascending: false }).range(hFrom, hFrom + step - 1);
+            const { data: chunk, error } = await supabaseClient.from('invoice_data')
+                .select('*')
+                .order('invoice_no', { ascending: false })
+                .order('id', { ascending: true })
+                .range(hFrom, hFrom + step - 1);
             if (error) throw error;
             historyDataList = historyDataList.concat(chunk);
             if (chunk.length < step) break;
@@ -664,13 +674,15 @@ async function confirmEditInvoice() {
                 let custInfoToSend = { officialName: custData ? custData.full_name : customer, address: custData && custData.address ? custData.address : "", taxId: custData && custData.tax_id ? String(custData.tax_id) : "", creditDays: custData && custData.credit_days ? parseInt(custData.credit_days) : 0 };
 
                 let payload = []; let insertPayload = []; let planUpdates = []; let cards = document.querySelectorAll('.edit-item-card');
-                
+                let parseDate = (d) => d && d.trim() !== '' ? d : null;
+
                 cards.forEach(card => {
                     let booking = card.getAttribute('data-booking'); 
                     let origContainer = card.getAttribute('data-container');
                     let oldItem = oldData.find(o => o.booking === booking && o.container_no === origContainer) || {};
 
                     let cDate = card.querySelector('.e-date').value;
+                    let cDateParsed = parseDate(cDate);
                     let cContainer = card.querySelector('.e-container').value.trim() || origContainer;
                     let cPlate = card.querySelector('.e-plate').value.trim() || '-';
 
@@ -680,27 +692,89 @@ async function confirmEditInvoice() {
 
                     let incTot = p + e1 + e2 + e3; let advTot = a1 + a2 + a3 + a4 + a5 + a6 + v1;
 
-                    payload.push({ rowIdx: oldItem.id, jobCustomer: oldItem.customer, customer: customer, booking: booking, date: cDate || null, plate: cPlate, cy: oldItem.cy_place || '-', load: oldItem.load_place || '-', rtn: oldItem.rtn_place || '-', type: oldItem.container_type || '-', container: cContainer, remark: oldItem.comment || '', price: p, adv1: a1, adv2: a2, adv6: a3, ext1: e1, ext2: e2, ext3: e3, adv4: a4, adv5: a5, adv9: a6, incTotal: incTot, advTotal: advTot, grandTotal: incTot + advTot });
+                    payload.push({ 
+                        rowIdx: oldItem.id, jobCustomer: oldItem.customer, customer: customer, booking: booking, 
+                        date: cDateParsed || oldItem.create_date, plate: cPlate, cy: oldItem.cy_place || '-', load: oldItem.load_place || '-', 
+                        rtn: oldItem.rtn_place || '-', type: oldItem.container_type || '-', container: cContainer, remark: oldItem.comment || '', 
+                        price: p, adv1: a1, adv2: a2, adv6: a3, ext1: e1, ext2: e2, ext3: e3, adv4: a4, adv5: a5, adv9: a6, 
+                        incTotal: incTot, advTotal: advTot, grandTotal: incTot + advTot 
+                    });
 
-                    let { id, ...oldItemWithoutId } = oldItem; 
-                    insertPayload.push({ ...oldItemWithoutId, customer: customer, bill_date: invDate, create_date: cDate || null, container_no: cContainer, vehicle_plate: cPlate, price: p, extender: e1, drop_tail: e2, lose_time: e3, receive: a1, return: a2, terminal_charge: a3, repair: String(a4), cleaning: a5, shore: a6, other_exp_name_1: n1, other_exp_amt_1: v1, total_income: incTot, total_advance: String(advTot), grand_total: incTot + advTot, user_action: currentUser });
+                    insertPayload.push({ 
+                        create_date: cDateParsed !== null ? cDateParsed : oldItem.create_date,
+                        cs: oldItem.cs || null,
+                        container_type: oldItem.container_type || null,
+                        mode: oldItem.mode || null,
+                        customer: customer,
+                        load_place: oldItem.load_place || null,
+                        booking: oldItem.booking || null,
+                        cy_place: oldItem.cy_place || null,
+                        cy_date: oldItem.cy_date || null,
+                        vgm: oldItem.vgm || null,
+                        rtn_place: oldItem.rtn_place || null,
+                        rtn_date: oldItem.rtn_date || null,
+                        closing_time: oldItem.closing_time || null,
+                        agent: oldItem.agent || null,
+                        comment: oldItem.comment || null,
+                        status: 'วางบิลแล้ว',
+                        vehicle_plate: cPlate,
+                        price: Math.round(p) || 0,
+                        receive: a1 || 0,
+                        return: a2 || 0,
+                        extender: Math.round(e1) || 0,
+                        drop_tail: Math.round(e2) || 0,
+                        lose_time: Math.round(e3) || 0,
+                        container_no: cContainer,
+                        repair: String(a4 || 0),
+                        cleaning: Math.round(a5) || 0,
+                        terminal_charge: Math.round(a3) || 0,
+                        shore: Math.round(a6) || 0,
+                        other_exp_name_1: n1,
+                        other_exp_amt_1: v1,
+                        other_exp_name_2: oldItem.other_exp_name_2 || '',
+                        other_exp_amt_2: oldItem.other_exp_amt_2 || 0,
+                        total_income: Math.round(incTot) || 0,
+                        total_advance: String(advTot || 0),
+                        grand_total: Math.round(incTot + advTot) || 0,
+                        bill_status: 'วางบิลแล้ว',
+                        invoice_no: invNo,
+                        ref_key: `${booking}_${cContainer}_${invNo}`,
+                        user_action: currentUser,
+                        bill_date: invDate,
+                        receipt_no: oldItem.receipt_no || null,
+                        voucher_no: oldItem.voucher_no || null,
+                        receive_no: oldItem.receive_no || null
+                    });
 
                     planUpdates.push(
                         supabaseClient.from('plan_data')
-                        .update({ container_no: cContainer, vehicle_plate: cPlate, booking_date: cDate || null })
+                        .update({ container_no: cContainer, vehicle_plate: cPlate, booking_date: cDateParsed || oldItem.create_date })
                         .eq('invoice_no', invNo)
                         .eq('booking', booking)
                         .eq('container_no', origContainer)
                     );
                 });
 
-                await Promise.all(planUpdates);
+                // 1. อัปเดตข้อมูลตู้ใน Controlplan
+                const planResults = await Promise.all(planUpdates);
+                const planError = planResults.find(r => r.error);
+                if (planError) throw new Error("อัปเดต plan_data ไม่สำเร็จ: " + planError.error.message);
+
+                // 2. ลบ PDF เก่า
                 await callInvAPI('rollbackInvoice', { invoiceNo: invNo }, 1, false);
+
+                // 3. สร้าง PDF ใหม่
                 const res = await callInvAPI('generateInvoicePDF', { payload: payload, invoiceDate: invDate, billingUser: currentUser, isSplit: isSplit, customInvNo: invNo, custInfo: custInfoToSend }, 1, false);
                 
                 if (res.success) {
-                    await supabaseClient.from('invoice_data').delete().eq('invoice_no', invNo);
-                    await supabaseClient.from('invoice_data').insert(insertPayload);
+                    // 4. ลบข้อมูลบิลเก่า
+                    const { error: delErr } = await supabaseClient.from('invoice_data').delete().eq('invoice_no', invNo);
+                    if (delErr) throw new Error("ลบข้อมูลเก่าไม่สำเร็จ: " + delErr.message);
+
+                    // 5. บันทึกข้อมูลบิลใหม่
+                    const { error: insErr } = await supabaseClient.from('invoice_data').insert(insertPayload);
+                    if (insErr) throw new Error("บันทึกข้อมูลใหม่ไม่สำเร็จ: " + insErr.message);
+
                     bootstrap.Modal.getInstance(document.getElementById('editInvoiceModal')).hide();
                     if (typeof hideGlobalLoader === 'function') hideGlobalLoader();
 
@@ -708,8 +782,14 @@ async function confirmEditInvoice() {
                     if (res.pdfUrls && res.pdfUrls.length > 1) { htmlContent = `<p class="text-muted">เอกสารใหม่พร้อมแล้ว</p><div class="d-flex flex-column gap-2 mt-3"><a href="${res.pdfUrls[0]}" target="_blank" class="btn btn-primary rounded-pill fw-bold btn-sm">บิลค่าขนส่ง</a><a href="${res.pdfUrls[1]}" target="_blank" class="btn btn-light text-primary border-primary rounded-pill fw-bold btn-sm">บิลสำรองจ่าย</a></div>`; } 
                     else { htmlContent = `<p class="text-muted">อัปเดตเอกสารเรียบร้อยแล้ว</p><a href="${res.pdfUrl}" target="_blank" class="btn btn-dark btn-sm rounded-pill mt-3 px-4 fw-bold shadow-sm" onclick="Swal.close()"><i class="bi bi-file-earmark-pdf me-1"></i> เปิดดูเอกสาร</a>`; }
                     Swal.fire({ icon: 'success', title: 'อัปเดตสำเร็จ!', html: htmlContent, showConfirmButton: false, showCloseButton: true, didClose: () => { forceSyncAll(); } });
-                } else { if (typeof hideGlobalLoader === 'function') hideGlobalLoader(); Swal.fire({ icon: 'error', text: res.message }); }
-            } catch (err) { if (typeof hideGlobalLoader === 'function') hideGlobalLoader(); Swal.fire('เกิดข้อผิดพลาด', err.message, 'error'); }
+                } else { 
+                    if (typeof hideGlobalLoader === 'function') hideGlobalLoader(); 
+                    Swal.fire({ icon: 'error', text: res.message }); 
+                }
+            } catch (err) { 
+                if (typeof hideGlobalLoader === 'function') hideGlobalLoader(); 
+                Swal.fire('เกิดข้อผิดพลาด', err.message, 'error'); 
+            }
         }
     });
 }
