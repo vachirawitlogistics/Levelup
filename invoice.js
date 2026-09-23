@@ -495,6 +495,14 @@ async function confirmGeneratePDF() {
 
 async function loadHistory(forceSync = false) {
     document.getElementById('historyBody').innerHTML = '<tr><td colspan="7" class="text-center py-5 text-primary"><div class="spinner-border spinner-border-sm me-2"></div>กำลังโหลดประวัติ...</td></tr>';
+    
+    let currentMonth = String(new Date().getMonth() + 1).padStart(2, '0');
+    let hMonthElem = document.getElementById('hFilterMonth');
+    if (hMonthElem && !hMonthElem.getAttribute('data-init')) {
+        hMonthElem.value = currentMonth;
+        hMonthElem.setAttribute('data-init', 'true');
+    }
+
     try {
         let historyDataList = [];
         let hFrom = 0;
@@ -607,7 +615,7 @@ function renderHistoryTable() {
             let displayStatusBadge = docStatusStr ? `<br><div class="mt-1">${docStatusStr}</div>` : '';
             let quickViewLink = `<a href="javascript:void(0);" onclick="viewInvoiceDetails('${r.invoiceNo}')" class="text-primary fw-bold text-decoration-none"><i class="bi bi-info-circle-fill me-1 opacity-50"></i>${r.invoiceNo}</a>`;
             
-            let rowStripeClass = (stripeIdx % 2 !== 0) ? 'stripe-odd' : 'stripe-even';
+            let rowStripeClass = (stripeIdx % 2 !== 0) ? 'bg-light' : 'bg-white';
             stripeIdx++;
 
             html += `<tr class="${rowStripeClass}"><td class="px-3">${quickViewLink}${displayStatusBadge}</td><td class="text-muted fw-medium">${dateStr}</td><td class="text-secondary fw-medium">${r.cs}</td><td class="fw-bold text-dark">${r.customer}</td><td class="text-center"><span class="badge bg-light text-dark border rounded-pill px-3 shadow-sm">${r.count}</span></td><td class="text-end fw-bold text-primary fs-6">฿${r.totalAmount.toLocaleString(undefined, {minimumFractionDigits:2})}</td><td class="text-center pe-4"><div class="btn-group dropstart"><button type="button" class="btn btn-white border shadow-sm btn-sm fw-bold dropdown-toggle dropdown-toggle-split rounded-pill px-3 text-secondary" data-bs-toggle="dropdown"><i class="bi bi-three-dots"></i></button><ul class="dropdown-menu shadow-lg border-0 py-1">${menuItems}</ul></div></td></tr>`;
@@ -650,7 +658,7 @@ async function openEditInvoiceModal(invoiceNo) {
                         <div class="col-md-4"><label class="small text-muted fw-bold mb-0">ทะเบียนรถ</label><input type="text" class="form-control form-control-sm bg-white e-plate border-secondary" value="${itm.vehicle_plate || ''}"></div>
                     </div>
                     <div class="row g-2"><div class="col-md-6 border-end border-light"><p class="text-success fw-bold small mb-1"><i class="bi bi-arrow-up-right-circle me-1"></i>รายได้ (Income)</p><div class="row g-1"><div class="col-6"><label class="small text-muted mb-0" style="font-size: 0.7rem;">ราคาเที่ยว</label><input type="number" class="form-control form-control-sm bg-white e-price" value="${itm.price || 0}"></div><div class="col-6"><label class="small text-muted mb-0" style="font-size: 0.7rem;">ต่อระยะ</label><input type="number" class="form-control form-control-sm bg-white e-ext1" value="${itm.extender || 0}"></div><div class="col-6"><label class="small text-muted mb-0" style="font-size: 0.7rem;">ค้างหาง</label><input type="number" class="form-control form-control-sm bg-white e-ext2" value="${itm.drop_tail || 0}"></div><div class="col-6"><label class="small text-muted mb-0" style="font-size: 0.7rem;">เสียเวลา</label><input type="number" class="form-control form-control-sm bg-white e-ext3" value="${itm.lose_time || 0}"></div></div></div>
-                <div class="col-md-6"><p class="text-danger fw-bold small mb-1"><i class="bi bi-arrow-down-right-circle me-1"></i>สำรองจ่าย (Advance)</p><div class="row g-1"><div class="col-4"><label class="small text-muted mb-0" style="font-size: 0.7rem;">รับตู้</label><input type="number" class="form-control form-control-sm bg-white e-adv1" value="${itm.receive || 0}"></div><div class="col-4"><label class="small text-muted mb-0" style="font-size: 0.7rem;">คืนตู้</label><input type="number" class="form-control form-control-sm bg-white e-adv2" value="${itm.return || 0}"></div><div class="col-4"><label class="small text-muted mb-0" style="font-size: 0.7rem;">ผ่านท่า</label><input type="number" class="form-control form-control-sm bg-white e-adv3" value="${itm.terminal_charge || 0}"></div><div class="col-4"><label class="small text-muted mb-0" style="font-size: 0.7rem;">ซ่อมตู้</label><input type="number" class="form-control form-control-sm bg-white e-adv4" value="${itm.repair || 0}"></div><div class="col-4"><label class="small text-muted mb-0" style="font-size: 0.7rem;">ล้างตู้</label><input type="number" class="form-control form-control-sm bg-white e-adv5" value="${itm.cleaning || 0}"></div><div class="col-4"><label class="small text-primary fw-bold mb-0" style="font-size: 0.7rem;">ค่าชอ</label><input type="number" class="form-control form-control-sm border-primary bg-primary bg-opacity-10 e-adv6" value="${itm.shore || 0}"></div><div class="col-12 m-0"><hr class="m-0 opacity-25"></div><div class="col-8 mt-1"><label class="small text-muted mb-0" style="font-size: 0.7rem;">ยอดอื่น 1 (ชื่อ)</label><input type="text" class="form-control form-control-sm bg-white e-extn1" value="${itm.other_exp_name_1 || ''}"></div><div class="col-4 mt-1"><label class="small text-muted mb-0" style="font-size: 0.7rem;">ยอด</label><input type="number" class="form-control form-control-sm bg-white e-extv1" value="${itm.other_exp_amt_1 || 0}"></div></div></div></div></div></div>`;
+                <div class="col-md-6"><p class="text-danger fw-bold small mb-1"><i class="bi bi-arrow-down-right-circle me-1"></i>สำรองจ่าย (Advance)</p><div class="row g-1"><div class="col-4"><label class="small text-muted mb-0" style="font-size: 0.7rem;">รับตู้</label><input type="number" class="form-control form-control-sm bg-white e-adv1" value="${itm.receive || 0}"></div><div class="col-4"><label class="small text-muted mb-0" style="font-size: 0.7rem;">คืนตู้</label><input type="number" class="form-control form-control-sm bg-white e-adv2" value="${itm.return || 0}"></div><div class="col-4"><label class="small text-muted mb-0" style="font-size: 0.7rem;">ผ่านท่า</label><input type="number" class="form-control form-control-sm bg-white e-adv3" value="${itm.terminal_charge || 0}"></div><div class="col-4"><label class="small text-muted mb-0" style="font-size: 0.7rem;">ซ่อมตู้</label><input type="number" class="form-control form-control-sm bg-white e-adv4" value="${itm.repair || 0}"></div><div class="col-4"><label class="small text-muted mb-0" style="font-size: 0.7rem;">ล้างตู้</label><input type="number" class="form-control form-control-sm bg-white e-adv5" value="${itm.cleaning || 0}"></div></div></div></div></div></div>`;
         });
         document.getElementById('editItemsContainer').innerHTML = html;
         if (typeof hideGlobalLoader === 'function') hideGlobalLoader();
@@ -687,91 +695,70 @@ async function confirmEditInvoice() {
                     let cPlate = card.querySelector('.e-plate').value.trim() || '-';
 
                     let p = parseFloat(card.querySelector('.e-price').value) || 0, e1 = parseFloat(card.querySelector('.e-ext1').value) || 0, e2 = parseFloat(card.querySelector('.e-ext2').value) || 0, e3 = parseFloat(card.querySelector('.e-ext3').value) || 0;
-                    let a1 = parseFloat(card.querySelector('.e-adv1').value) || 0, a2 = parseFloat(card.querySelector('.e-adv2').value) || 0, a3 = parseFloat(card.querySelector('.e-adv3').value) || 0, a4 = parseFloat(card.querySelector('.e-adv4').value) || 0, a5 = parseFloat(card.querySelector('.e-adv5').value) || 0, a6 = parseFloat(card.querySelector('.e-adv6').value) || 0;
-                    let n1 = card.querySelector('.e-extn1').value.trim(), v1 = parseFloat(card.querySelector('.e-extv1').value) || 0;
+                    let a1 = parseFloat(card.querySelector('.e-adv1').value) || 0, a2 = parseFloat(card.querySelector('.e-adv2').value) || 0, a3 = parseFloat(card.querySelector('.e-adv3').value) || 0, a4 = parseFloat(card.querySelector('.e-adv4').value) || 0, a5 = parseFloat(card.querySelector('.e-adv5').value) || 0;
 
-                    let incTot = p + e1 + e2 + e3; let advTot = a1 + a2 + a3 + a4 + a5 + a6 + v1;
+                    let incTot = p + e1 + e2 + e3; let advTot = a1 + a2 + a3 + a4 + a5;
 
                     payload.push({ 
                         rowIdx: oldItem.id, jobCustomer: oldItem.customer, customer: customer, booking: booking, 
                         date: cDateParsed || oldItem.create_date, plate: cPlate, cy: oldItem.cy_place || '-', load: oldItem.load_place || '-', 
                         rtn: oldItem.rtn_place || '-', type: oldItem.container_type || '-', container: cContainer, remark: oldItem.comment || '', 
-                        price: p, adv1: a1, adv2: a2, adv6: a3, ext1: e1, ext2: e2, ext3: e3, adv4: a4, adv5: a5, adv9: a6, 
+                        price: p, adv1: a1, adv2: a2, ext1: e1, ext2: e2, ext3: e3, adv4: a4, adv5: a5, adv6: a3, 
                         incTotal: incTot, advTotal: advTot, grandTotal: incTot + advTot 
                     });
 
-                    insertPayload.push({ 
-                        create_date: cDateParsed !== null ? cDateParsed : oldItem.create_date,
-                        cs: oldItem.cs || null,
-                        container_type: oldItem.container_type || null,
-                        mode: oldItem.mode || null,
-                        customer: customer,
-                        load_place: oldItem.load_place || null,
-                        booking: oldItem.booking || null,
-                        cy_place: oldItem.cy_place || null,
-                        cy_date: oldItem.cy_date || null,
-                        vgm: oldItem.vgm || null,
-                        rtn_place: oldItem.rtn_place || null,
-                        rtn_date: oldItem.rtn_date || null,
-                        closing_time: oldItem.closing_time || null,
-                        agent: oldItem.agent || null,
-                        comment: oldItem.comment || null,
-                        status: 'วางบิลแล้ว',
-                        vehicle_plate: cPlate,
-                        price: Math.round(p) || 0,
-                        receive: a1 || 0,
-                        return: a2 || 0,
-                        extender: Math.round(e1) || 0,
-                        drop_tail: Math.round(e2) || 0,
-                        lose_time: Math.round(e3) || 0,
-                        container_no: cContainer,
-                        repair: String(a4 || 0),
-                        cleaning: Math.round(a5) || 0,
-                        terminal_charge: Math.round(a3) || 0,
-                        shore: Math.round(a6) || 0,
-                        other_exp_name_1: n1,
-                        other_exp_amt_1: v1,
-                        other_exp_name_2: oldItem.other_exp_name_2 || '',
-                        other_exp_amt_2: oldItem.other_exp_amt_2 || 0,
-                        total_income: Math.round(incTot) || 0,
-                        total_advance: String(advTot || 0),
-                        grand_total: Math.round(incTot + advTot) || 0,
-                        bill_status: 'วางบิลแล้ว',
-                        invoice_no: invNo,
-                        ref_key: `${booking}_${cContainer}_${invNo}`,
-                        user_action: currentUser,
-                        bill_date: invDate,
-                        receipt_no: oldItem.receipt_no || null,
-                        voucher_no: oldItem.voucher_no || null,
-                        receive_no: oldItem.receive_no || null
-                    });
+                    let newItemForDB = { ...oldItem };
+                    delete newItemForDB.id;
+                    
+                    newItemForDB.customer = customer;
+                    newItemForDB.bill_date = invDate;
+                    newItemForDB.create_date = cDateParsed || oldItem.create_date;
+                    newItemForDB.container_no = cContainer;
+                    newItemForDB.vehicle_plate = cPlate;
+                    newItemForDB.price = p;
+                    newItemForDB.extender = e1;
+                    newItemForDB.drop_tail = e2;
+                    newItemForDB.lose_time = e3;
+                    newItemForDB.receive = a1;
+                    newItemForDB.return = a2;
+                    newItemForDB.terminal_charge = a3;
+                    newItemForDB.repair = String(a4);
+                    newItemForDB.cleaning = a5;
+                    newItemForDB.total_income = incTot;
+                    newItemForDB.total_advance = String(advTot);
+                    newItemForDB.grand_total = incTot + advTot;
+                    newItemForDB.user_action = currentUser;
+                    
+                    insertPayload.push(newItemForDB);
 
                     planUpdates.push(
                         supabaseClient.from('plan_data')
-                        .update({ container_no: cContainer, vehicle_plate: cPlate, booking_date: cDateParsed || oldItem.create_date })
+                        .update({ 
+                            container_no: cContainer, 
+                            vehicle_plate: cPlate, 
+                            booking_date: cDateParsed || oldItem.create_date,
+                            price: p, extender: e1, tail_drop: e2, lose_time: e3,
+                            receive: String(a1), retrun: String(a2), terminal_charge: a3,
+                            repair: String(a4), cleaning: a5
+                        })
                         .eq('invoice_no', invNo)
                         .eq('booking', booking)
                         .eq('container_no', origContainer)
                     );
                 });
 
-                // 1. อัปเดตข้อมูลตู้ใน Controlplan
                 const planResults = await Promise.all(planUpdates);
                 const planError = planResults.find(r => r.error);
                 if (planError) throw new Error("อัปเดต plan_data ไม่สำเร็จ: " + planError.error.message);
 
-                // 2. ลบ PDF เก่า
                 await callInvAPI('rollbackInvoice', { invoiceNo: invNo }, 1, false);
 
-                // 3. สร้าง PDF ใหม่
                 const res = await callInvAPI('generateInvoicePDF', { payload: payload, invoiceDate: invDate, billingUser: currentUser, isSplit: isSplit, customInvNo: invNo, custInfo: custInfoToSend }, 1, false);
                 
                 if (res.success) {
-                    // 4. ลบข้อมูลบิลเก่า
                     const { error: delErr } = await supabaseClient.from('invoice_data').delete().eq('invoice_no', invNo);
                     if (delErr) throw new Error("ลบข้อมูลเก่าไม่สำเร็จ: " + delErr.message);
 
-                    // 5. บันทึกข้อมูลบิลใหม่
                     const { error: insErr } = await supabaseClient.from('invoice_data').insert(insertPayload);
                     if (insErr) throw new Error("บันทึกข้อมูลใหม่ไม่สำเร็จ: " + insErr.message);
 
