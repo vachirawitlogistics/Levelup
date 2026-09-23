@@ -51,7 +51,8 @@ document.querySelectorAll('#pills-tab button').forEach(btn => {
         if (event.target.id === 'tab-history') event.target.classList.add('active-history');
         document.querySelectorAll('#module-invoice .tab-pane').forEach(pane => { pane.classList.remove('show', 'active'); pane.style.display = 'none'; });
         const targetPane = document.querySelector(event.target.getAttribute('data-bs-target'));
-        if (targetPane) { targetPane.classList.add('show', 'active'); targetPane.style.display = 'block'; }
+        // แก้ไขบรรทัดนี้จาก 'block' เป็น 'flex' เพื่อให้ตารางยืดความสูงเต็มพื้นที่เสมอ
+        if (targetPane) { targetPane.classList.add('show', 'active'); targetPane.style.display = 'flex'; }
     });
 });
 
@@ -190,7 +191,7 @@ function renderAuditTab() {
         let totalInSystem = bkgTotalsGlobal[bkg] || group.items.length;
         let badgeClass = group.items.length < totalInSystem ? 'bg-warning bg-opacity-25 text-warning border border-warning' : 'bg-secondary bg-opacity-10 text-secondary';
         let safeBkg = 'bkg_' + bkg.replace(/[^a-zA-Z0-9]/g, '_');
-        let rowStripeClass = (stripeIdx % 2 !== 0) ? 'bg-light' : 'bg-white';
+        let rowStripeClass = (stripeIdx % 2 !== 0) ? 'stripe-odd' : 'stripe-even';
         stripeIdx++;
 
         html += `<tr class="parent-row ${rowStripeClass}" onclick="toggleDetailA('${safeBkg}')">
@@ -351,7 +352,7 @@ function renderReadyTab() {
         let totalInSystem = bkgTotalsGlobal[bkg] || group.items.length;
         let badgeClass = group.items.length < totalInSystem ? 'bg-warning bg-opacity-25 text-warning border border-warning' : 'bg-secondary bg-opacity-10 text-secondary';
         let safeBkg = 'bkg_' + bkg.replace(/[^a-zA-Z0-9]/g, '_');
-        let rowStripeClass = (stripeIdx % 2 !== 0) ? 'bg-light' : 'bg-white';
+        let rowStripeClass = (stripeIdx % 2 !== 0) ? 'stripe-odd' : 'stripe-even';
         stripeIdx++;
 
         html += `<tr class="parent-row ${rowStripeClass}" onclick="toggleDetailR('${safeBkg}')">
@@ -596,7 +597,7 @@ function renderHistoryTable() {
             let displayStatusBadge = docStatusStr ? `<br><div class="mt-1">${docStatusStr}</div>` : '';
             let quickViewLink = `<a href="javascript:void(0);" onclick="viewInvoiceDetails('${r.invoiceNo}')" class="text-primary fw-bold text-decoration-none"><i class="bi bi-info-circle-fill me-1 opacity-50"></i>${r.invoiceNo}</a>`;
             
-            let rowStripeClass = (stripeIdx % 2 !== 0) ? 'bg-light' : 'bg-white';
+            let rowStripeClass = (stripeIdx % 2 !== 0) ? 'stripe-odd' : 'stripe-even';
             stripeIdx++;
 
             html += `<tr class="${rowStripeClass}"><td class="px-3">${quickViewLink}${displayStatusBadge}</td><td class="text-muted fw-medium">${dateStr}</td><td class="text-secondary fw-medium">${r.cs}</td><td class="fw-bold text-dark">${r.customer}</td><td class="text-center"><span class="badge bg-light text-dark border rounded-pill px-3 shadow-sm">${r.count}</span></td><td class="text-end fw-bold text-primary fs-6">฿${r.totalAmount.toLocaleString(undefined, {minimumFractionDigits:2})}</td><td class="text-center pe-4"><div class="btn-group dropstart"><button type="button" class="btn btn-white border shadow-sm btn-sm fw-bold dropdown-toggle dropdown-toggle-split rounded-pill px-3 text-secondary" data-bs-toggle="dropdown"><i class="bi bi-three-dots"></i></button><ul class="dropdown-menu shadow-lg border-0 py-1">${menuItems}</ul></div></td></tr>`;
