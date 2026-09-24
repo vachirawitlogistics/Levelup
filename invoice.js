@@ -493,7 +493,7 @@ async function confirmGeneratePDF() {
             finalInvNo = prefix + String(nextSeq).padStart(3, '0');
         }
 
-        Swal.fire({ title: 'กำลังสร้างไฟล์ PDF...', text: 'รอสักครู่ (ประมาณ 3-5 วินาที)', allowOutsideClick: false, didOpen: () => { Swal.showLoading(); } });
+        Swal.fire({ title: 'กำลังสร้างไฟล์ PDF...', text: 'รอสักครู่.....', allowOutsideClick: false, didOpen: () => { Swal.showLoading(); } });
         const res = await callInvAPI('generateInvoicePDF', { payload: tempPayloadForPDF, invoiceDate: invDate, billingUser: currentUser, isSplit: isSplit, customInvNo: finalInvNo, custInfo: custInfoToSend }, 1, false);
         
         if (res.success) {
