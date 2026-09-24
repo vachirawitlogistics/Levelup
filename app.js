@@ -575,7 +575,9 @@ async function saveData() {
     const { error } = await supabaseClient.from('plan_data').insert(payloadData);
     if (!error) { 
         await writeLog("เพิ่ม Booking ใหม่", `Booking No: ${bkg} จำนวน ${payloadData.length} ตู้`);
-        bootstrap.Modal.getInstance(document.getElementById('addModal')).hide(); clearForm(); await loadPlanData(true); 
+        bootstrap.Modal.getInstance(document.getElementById('addModal')).hide(); clearForm(); 
+        await loadPlanData(true); 
+        if (typeof clearInvoiceCache === 'function') clearInvoiceCache();
         hideGlobalLoader(); Swal.fire({ icon: 'success', title: 'บันทึกสำเร็จ!', timer: 1500, showConfirmButton: false }); 
     } else { 
         hideGlobalLoader(); Swal.fire({ icon: 'error', title: 'เกิดข้อผิดพลาด', text: error.message }); 
@@ -649,7 +651,9 @@ async function saveEdit() {
     
     if (!error) { 
         await writeLog("แก้ไขรายละเอียดตู้", `แก้ไขตู้ใน Booking No: ${v('eBooking')}`);
-        bootstrap.Modal.getInstance(document.getElementById('editModal')).hide(); await loadPlanData(true); 
+        bootstrap.Modal.getInstance(document.getElementById('editModal')).hide(); 
+        await loadPlanData(true); 
+        if (typeof clearInvoiceCache === 'function') clearInvoiceCache();
         hideGlobalLoader(); Swal.fire({ icon: 'success', title: 'อัปเดตสำเร็จ!', timer: 1500, showConfirmButton: false }); 
     } else { 
         hideGlobalLoader(); Swal.fire({ icon: 'error', text: error.message }); 
@@ -692,7 +696,9 @@ async function finishEntireBooking() {
             if (idsToUpdate.length > 0) await supabaseClient.from('plan_data').update({ status: 'จบงานรอวางบิล' }).in('id', idsToUpdate);
 
             await writeLog("จบงาน (Batch)", `บันทึกและเปลี่ยนสถานะจบงาน BKG: ${bkgNo}`);
-            bootstrap.Modal.getInstance(document.getElementById('editModal')).hide(); await loadPlanData(true);
+            bootstrap.Modal.getInstance(document.getElementById('editModal')).hide(); 
+            await loadPlanData(true);
+            if (typeof clearInvoiceCache === 'function') clearInvoiceCache();
             hideGlobalLoader(); Swal.fire({ icon: 'success', title: 'สำเร็จ!', timer: 2000, showConfirmButton: false });
         }
     });
@@ -709,7 +715,9 @@ function deleteSingle() {
             const { error } = await supabaseClient.from('plan_data').delete().eq('id', rowNum);
             if (!error) { 
                 await writeLog("ลบตู้ (รายใบ)", `ลบตู้จาก Booking No: ${bkgNo}`);
-                bootstrap.Modal.getInstance(document.getElementById('editModal')).hide(); await loadPlanData(true); 
+                bootstrap.Modal.getInstance(document.getElementById('editModal')).hide(); 
+                await loadPlanData(true); 
+                if (typeof clearInvoiceCache === 'function') clearInvoiceCache();
                 hideGlobalLoader(); Swal.fire({ icon: 'success', timer: 1500, showConfirmButton: false }); 
             } else { hideGlobalLoader(); Swal.fire({ icon: 'error', text: error.message }); }
         }
@@ -768,7 +776,9 @@ async function saveBatchTruckMulti() {
 
     if (!error) { 
         await writeLog("จัดรถ (Batch)", `อัปเดตสถานะจัดรถจำนวน ${payload.length} ตู้`);
-        bootstrap.Modal.getInstance(document.getElementById('batchTruckModal')).hide(); await loadPlanData(true); 
+        bootstrap.Modal.getInstance(document.getElementById('batchTruckModal')).hide(); 
+        await loadPlanData(true); 
+        if (typeof clearInvoiceCache === 'function') clearInvoiceCache();
         hideGlobalLoader(); Swal.fire({ icon: 'success', title: 'สำเร็จ!', timer: 1500, showConfirmButton: false }); 
     } else { hideGlobalLoader(); Swal.fire({ icon: 'error', text: error.error.message }); }
 }
@@ -905,9 +915,10 @@ function renderCustomerTable() {
     if (filtered.length === 0) { tbody = '<tr><td colspan="5" class="text-center text-muted py-4">ไม่พบข้อมูลลูกค้าในระบบ</td></tr>'; } 
     else {
         filtered.forEach((c) => {
-            let safeData = encodeURIComponent(JSON.stringify({ oldShort: c[0] || '', oldFull: c[1] || '', shortName: c[0] || '', fullName: c[1] || '', address: c[2] || '', taxId: c[3] || '', creditDays: c[4] || '', remark: c[5] || '' }));
+            let paddedTaxId = c[3] ? String(c[3]).padStart(13, '0') : '';
+            let safeData = encodeURIComponent(JSON.stringify({ oldShort: c[0] || '', oldFull: c[1] || '', shortName: c[0] || '', fullName: c[1] || '', address: c[2] || '', taxId: paddedTaxId, creditDays: c[4] || '', remark: c[5] || '' }));
             let sName = c[0] || ''; let fName = c[1] || ''; let safeOldShort = sName.replace(/'/g, "\\'"); let safeOldFull = fName.replace(/'/g, "\\'");
-            tbody += `<tr><td class="fw-bold text-primary align-middle px-3">${sName || '<span class="text-muted fst-italic">ไม่มีชื่อย่อ</span>'}</td><td class="align-middle text-start text-wrap px-3" style="min-width: 250px;">${fName || '-'}<br><small class="text-muted"><i class="bi bi-geo-alt"></i> ${c[2] || 'ไม่ระบุที่อยู่'}</small></td><td class="align-middle px-3 text-secondary">${c[3] || '-'}</td><td class="align-middle px-3 text-success">${c[4] ? c[4] + ' วัน' : '-'}</td><td class="align-middle text-center"><button class="btn btn-sm btn-outline-primary rounded-circle px-2 me-1 shadow-sm" title="แก้ไข" onclick="editCustomerModal('${safeData}')"><i class="bi bi-pencil"></i></button><button class="btn btn-sm btn-outline-danger rounded-circle px-2 shadow-sm" title="ลบ" onclick="deleteCustomerModal('${safeOldShort}', '${safeOldFull}')"><i class="bi bi-trash"></i></button></td></tr>`;
+            tbody += `<tr><td class="fw-bold text-primary align-middle px-3">${sName || '<span class="text-muted fst-italic">ไม่มีชื่อย่อ</span>'}</td><td class="align-middle text-start text-wrap px-3" style="min-width: 250px;">${fName || '-'}<br><small class="text-muted"><i class="bi bi-geo-alt"></i> ${c[2] || 'ไม่ระบุที่อยู่'}</small></td><td class="align-middle px-3 text-secondary">${paddedTaxId || '-'}</td><td class="align-middle px-3 text-success">${c[4] ? c[4] + ' วัน' : '-'}</td><td class="align-middle text-center"><button class="btn btn-sm btn-outline-primary rounded-circle px-2 me-1 shadow-sm" title="แก้ไข" onclick="editCustomerModal('${safeData}')"><i class="bi bi-pencil"></i></button><button class="btn btn-sm btn-outline-danger rounded-circle px-2 shadow-sm" title="ลบ" onclick="deleteCustomerModal('${safeOldShort}', '${safeOldFull}')"><i class="bi bi-trash"></i></button></td></tr>`;
         });
     }
     document.getElementById('customerTableBody').innerHTML = tbody;
@@ -916,7 +927,7 @@ function renderCustomerTable() {
 async function addCustomerRecordJS() {
     let payload = {
         short_name: document.getElementById('newCustShort').value.trim(), full_name: document.getElementById('newCustFull').value.trim(),
-        address: document.getElementById('newCustAddress').value.trim(), tax_id: parseInt(document.getElementById('newCustTax').value.trim()) || null,
+        address: document.getElementById('newCustAddress').value.trim(), tax_id: document.getElementById('newCustTax').value.trim() || null,
         credit_days: parseInt(document.getElementById('newCustCredit').value.trim()) || 0, note: document.getElementById('newCustRemark').value.trim()
     };
     if (!payload.short_name && !payload.full_name) return Swal.fire({icon: 'warning', text: 'กรุณาระบุชื่อย่อ หรือ ชื่อเต็มลูกค้า อย่างน้อย 1 ช่องครับ'});
@@ -926,6 +937,7 @@ async function addCustomerRecordJS() {
         await writeLog("เพิ่มลูกค้า", `ชื่อ: ${payload.short_name || payload.full_name}`);
         let fields = ['newCustShort', 'newCustFull', 'newCustAddress', 'newCustTax', 'newCustCredit', 'newCustRemark']; fields.forEach(id => document.getElementById(id).value = '');
         await loadCustomerTable(); await loadPlanDataInitial(); 
+        if (typeof clearInvoiceCache === 'function') clearInvoiceCache();
         Swal.fire({icon: 'success', title: 'เพิ่มลูกค้าสำเร็จ!', timer: 1500, showConfirmButton: false});
     } else { Swal.fire({icon: 'error', text: error.message}); }
 }
@@ -936,19 +948,21 @@ function editCustomerModal(encodedData) {
 
     Swal.fire({
         title: 'แก้ไขข้อมูลลูกค้า', width: '700px', 
-        html: `<div class="row g-2 text-start compact-form"><div class="col-12 col-md-4"><label class="small fw-bold text-muted mb-1">ชื่อย่อ</label><input type="text" id="editCustShort" class="form-control form-control-sm border-primary" value="${escapeHTML(data.shortName)}"></div><div class="col-12 col-md-8"><label class="small fw-bold text-muted mb-1">ชื่อเต็ม</label><input type="text" id="editCustFull" class="form-control form-control-sm" value="${escapeHTML(data.fullName)}"></div><div class="col-12"><label class="small fw-bold text-muted mb-1">ที่อยู่</label><textarea id="editCustAddress" class="form-control form-control-sm" rows="2">${escapeHTML(data.address)}</textarea></div><div class="col-12 col-md-4"><label class="small fw-bold text-muted mb-1">Tax ID</label><input type="number" id="editCustTax" class="form-control form-control-sm" value="${escapeHTML(data.taxId)}"></div><div class="col-12 col-md-4"><label class="small fw-bold text-muted mb-1">เครดิต (วัน)</label><input type="number" id="editCustCredit" class="form-control form-control-sm" value="${escapeHTML(data.creditDays)}"></div><div class="col-12 col-md-4"><label class="small fw-bold text-muted mb-1">หมายเหตุ</label><input type="text" id="editCustRemark" class="form-control form-control-sm" value="${escapeHTML(data.remark)}"></div></div>`,
+        html: `<div class="row g-2 text-start compact-form"><div class="col-12 col-md-4"><label class="small fw-bold text-muted mb-1">ชื่อย่อ</label><input type="text" id="editCustShort" class="form-control form-control-sm border-primary" value="${escapeHTML(data.shortName)}"></div><div class="col-12 col-md-8"><label class="small fw-bold text-muted mb-1">ชื่อเต็ม</label><input type="text" id="editCustFull" class="form-control form-control-sm" value="${escapeHTML(data.fullName)}"></div><div class="col-12"><label class="small fw-bold text-muted mb-1">ที่อยู่</label><textarea id="editCustAddress" class="form-control form-control-sm" rows="2">${escapeHTML(data.address)}</textarea></div><div class="col-12 col-md-4"><label class="small fw-bold text-muted mb-1">Tax ID</label><input type="text" id="editCustTax" class="form-control form-control-sm" value="${escapeHTML(data.taxId)}"></div><div class="col-12 col-md-4"><label class="small fw-bold text-muted mb-1">เครดิต (วัน)</label><input type="number" id="editCustCredit" class="form-control form-control-sm" value="${escapeHTML(data.creditDays)}"></div><div class="col-12 col-md-4"><label class="small fw-bold text-muted mb-1">หมายเหตุ</label><input type="text" id="editCustRemark" class="form-control form-control-sm" value="${escapeHTML(data.remark)}"></div></div>`,
         showCancelButton: true, confirmButtonText: '<i class="bi bi-floppy"></i> บันทึกแก้ไข', cancelButtonText: 'ยกเลิก',
         preConfirm: () => {
             let newShort = document.getElementById('editCustShort').value.trim(); let newFull = document.getElementById('editCustFull').value.trim();
             if(!newShort && !newFull) { Swal.showValidationMessage('ต้องระบุชื่อย่อ หรือ ชื่อเต็ม อย่างน้อย 1 ช่องครับ!'); return false; }
-            return { short_name: newShort, full_name: newFull, address: document.getElementById('editCustAddress').value.trim(), tax_id: parseInt(document.getElementById('editCustTax').value.trim()) || null, credit_days: parseInt(document.getElementById('editCustCredit').value.trim()) || 0, note: document.getElementById('editCustRemark').value.trim() };
+            return { short_name: newShort, full_name: newFull, address: document.getElementById('editCustAddress').value.trim(), tax_id: document.getElementById('editCustTax').value.trim() || null, credit_days: parseInt(document.getElementById('editCustCredit').value.trim()) || 0, note: document.getElementById('editCustRemark').value.trim() };
         }
     }).then(async (res) => {
         if (res.isConfirmed) {
             const { error } = await supabaseClient.from('customer').update(res.value).eq('short_name', data.oldShort).eq('full_name', data.oldFull);
             if(!error) { 
                 await writeLog("แก้ไขลูกค้า", `อัปเดตข้อมูลลูกค้า: ${res.value.short_name || res.value.full_name}`);
-                await loadCustomerTable(); await loadPlanDataInitial(); Swal.fire({icon: 'success', title: 'อัปเดตสำเร็จ!', timer: 1500, showConfirmButton: false}); 
+                await loadCustomerTable(); await loadPlanDataInitial(); 
+                if (typeof clearInvoiceCache === 'function') clearInvoiceCache();
+                Swal.fire({icon: 'success', title: 'อัปเดตสำเร็จ!', timer: 1500, showConfirmButton: false}); 
             } 
             else { Swal.fire({icon: 'error', text: error.message}); }
         }
@@ -965,7 +979,9 @@ function deleteCustomerModal(oldShort, oldFull) {
             const { error } = await supabaseClient.from('customer').delete().eq('short_name', oldShort).eq('full_name', oldFull);
             if(!error) { 
                 await writeLog("ลบลูกค้า", `ลบลูกค้า: ${showName}`);
-                await loadCustomerTable(); await loadPlanDataInitial(); Swal.fire({icon: 'success', title: 'ลบสำเร็จ!', timer: 1500, showConfirmButton: false}); 
+                await loadCustomerTable(); await loadPlanDataInitial(); 
+                if (typeof clearInvoiceCache === 'function') clearInvoiceCache();
+                Swal.fire({icon: 'success', title: 'ลบสำเร็จ!', timer: 1500, showConfirmButton: false}); 
             } 
             else { Swal.fire({icon: 'error', text: error.message}); }
         }
@@ -1012,7 +1028,9 @@ function confirmDeleteBooking(bkgNo) {
             const { error } = await supabaseClient.from('plan_data').delete().eq('booking', bkgNo);
             if (!error) { 
                 await writeLog("ลบ Booking (ยกล็อต)", `ลบ Booking No: ${bkgNo}`);
-                bootstrap.Modal.getInstance(document.getElementById('deleteBookingModal')).hide(); await loadPlanData(true); 
+                bootstrap.Modal.getInstance(document.getElementById('deleteBookingModal')).hide(); 
+                await loadPlanData(true); 
+                if (typeof clearInvoiceCache === 'function') clearInvoiceCache();
                 hideGlobalLoader(); Swal.fire({ icon: 'success', title: 'ลบสำเร็จ!', timer: 1500, showConfirmButton: false }); 
             } else { 
                 hideGlobalLoader(); Swal.fire({ icon: 'error', text: error.message }); 

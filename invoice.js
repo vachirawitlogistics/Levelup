@@ -6,6 +6,10 @@ let rawHistoryData = [], filteredHistoryData = [];
 let histSortCol = 'invoiceNo', histSortAsc = false;
 let tempPayloadForPDF = [], currentReceiptInvNo = "", currentDocType = "";
 
+function clearInvoiceCache() {
+    rawBillingData = [];
+}
+
 async function callInvAPI(action, params = {}, retries = 3, showLoader = true) {
     if (showLoader && typeof showGlobalLoader === 'function') showGlobalLoader('กำลังเชื่อมต่อเซิร์ฟเวอร์เอกสาร...');
     for (let i = 0; i <= retries; i++) {
@@ -31,6 +35,22 @@ async function callInvAPI(action, params = {}, retries = 3, showLoader = true) {
     }
 }
 
+async function getCustomerInfo(customerName) {
+    if (!customerName) return null;
+    let nameToSearch = customerName.trim();
+    let { data } = await supabaseClient.from('customer').select('*').ilike('full_name', nameToSearch).maybeSingle();
+    if (!data) {
+        let { data: fallback } = await supabaseClient.from('customer').select('*').ilike('short_name', nameToSearch).maybeSingle();
+        data = fallback;
+    }
+    if (!data) {
+        let wildcard = '%' + nameToSearch.replace(/\s+/g, '%') + '%';
+        let { data: wild } = await supabaseClient.from('customer').select('*').ilike('full_name', wildcard).limit(1).maybeSingle();
+        data = wild;
+    }
+    return data;
+}
+
 document.addEventListener('focusin', function(e) {
     if (e.target.tagName === 'INPUT' && e.target.type === 'number') {
         if (e.target.value === '0') e.target.value = ''; else e.target.select();
@@ -51,25 +71,20 @@ document.querySelectorAll('#pills-tab button').forEach(btn => {
         if (event.target.id === 'tab-history') event.target.classList.add('active-history');
         document.querySelectorAll('#module-invoice .tab-pane').forEach(pane => { pane.classList.remove('show', 'active'); pane.style.display = 'none'; });
         const targetPane = document.querySelector(event.target.getAttribute('data-bs-target'));
-        if (targetPane) { targetPane.classList.add('show', 'active'); targetPane.style.display = 'flex'; }
+        if (targetPane) { targetPane.classList.add('show', 'active'); targetPane.style.display = 'block'; }
     });
 });
 
 async function loadBillingData(isLogin = false, forceSync = false) {
     if (!forceSync && rawBillingData.length > 0) { applyFilterAudit(); applyFilterReady(); return; }
-    if (typeof showGlobalLoader === 'function') showGlobalLoader('กำลังโหลดข้อมูลวางบิลจาก Supabase...');
+    if (typeof showGlobalLoader === 'function') showGlobalLoader('กำลังโหลดข้อมูลวางบิล...');
     try {
         let fetchedBilling = [];
         let from = 0;
         const step = 1000;
         
         while (true) {
-            const { data: chunk, error } = await supabaseClient.from('plan_data')
-                .select('*')
-                .in('status', ['จบงานรอวางบิล', 'พร้อมวางบิล'])
-                .order('booking_date', { ascending: false })
-                .order('id', { ascending: true })
-                .range(from, from + step - 1);
+            const { data: chunk, error } = await supabaseClient.from('plan_data').select('*').in('status', ['จบงานรอวางบิล', 'พร้อมวางบิล']).order('created_at', { ascending: false }).range(from, from + step - 1);
             if (error) throw error;
             fetchedBilling = fetchedBilling.concat(chunk);
             if (chunk.length < step) break;
@@ -79,9 +94,7 @@ async function loadBillingData(isLogin = false, forceSync = false) {
         let allBkgDataList = [];
         let bkgFrom = 0;
         while (true) {
-            const { data: bkgChunk, error: bkgErr } = await supabaseClient.from('plan_data')
-                .select('booking')
-                .range(bkgFrom, bkgFrom + step - 1);
+            const { data: bkgChunk, error: bkgErr } = await supabaseClient.from('plan_data').select('booking').range(bkgFrom, bkgFrom + step - 1);
             if (bkgErr) throw bkgErr;
             allBkgDataList = allBkgDataList.concat(bkgChunk);
             if (bkgChunk.length < step) break;
@@ -136,7 +149,10 @@ async function loadBillingData(isLogin = false, forceSync = false) {
 }
 
 function forceSyncBillingData() {
-    rawBillingData = []; rawHistoryData = []; loadBillingData(false, true);
+    rawBillingData = []; rawHistoryData = []; 
+    loadBillingData(false, true).then(() => {
+        if (typeof loadPlanData === 'function') loadPlanData(true);
+    });
     if (document.getElementById('tab-history').classList.contains('active-history')) loadHistory(true);
 }
 
@@ -309,7 +325,10 @@ async function saveAuditBulk() {
             try {
                 const promises = payloadData.map(item => supabaseClient.from('plan_data').update(item).eq('id', item.id));
                 const results = await Promise.all(promises); const error = results.find(r => r.error);
-                if (!error) { Swal.fire({ icon: 'success', title: 'สำเร็จ!', text: 'ย้ายไปยังหน้าเตรียมวางบิลเรียบร้อย' }); forceSyncAll(); } 
+                if (!error) { 
+                    Swal.fire({ icon: 'success', title: 'สำเร็จ!', text: 'ย้ายไปยังหน้าเตรียมวางบิลเรียบร้อย' }); 
+                    if (typeof forceSyncBillingData === 'function') forceSyncBillingData();
+                } 
                 else { throw error.error; }
             } catch (err) { if (typeof hideGlobalLoader === 'function') hideGlobalLoader(); Swal.fire('เกิดข้อผิดพลาด', err.message, 'error'); }
         }
@@ -407,7 +426,8 @@ function revertBooking(bkg) {
             try {
                 const { error } = await supabaseClient.from('plan_data').update({ status: 'จบงานรอวางบิล' }).eq('booking', bkg).eq('status', 'พร้อมวางบิล');
                 if (error) throw error;
-                Swal.fire({ icon: 'success', title: 'สำเร็จ', text: 'ดึงกลับไปแก้ไขสำเร็จ' }); forceSyncAll();
+                Swal.fire({ icon: 'success', title: 'สำเร็จ', text: 'ดึงกลับไปแก้ไขสำเร็จ' }); 
+                if (typeof forceSyncBillingData === 'function') forceSyncBillingData();
             } catch (err) { if (typeof hideGlobalLoader === 'function') hideGlobalLoader(); Swal.fire('เกิดข้อผิดพลาด', err.message, 'error'); }
         }
     });
@@ -437,7 +457,7 @@ async function generateInvoiceBulk() {
 
     let rawCustomerName = Array.from(custSet)[0];
     try {
-        const { data: custData } = await supabaseClient.from('customer').select('*').eq('full_name', rawCustomerName).maybeSingle();
+        let custData = await getCustomerInfo(rawCustomerName);
         let finalNameToShow = custData ? custData.full_name : rawCustomerName;
         document.getElementById('modBillToName').value = finalNameToShow; document.getElementById('modCount').innerText = tempPayloadForPDF.length;
         document.getElementById('modTotal').innerText = '฿' + sumTotal.toLocaleString(undefined, { minimumFractionDigits: 2 });
@@ -457,8 +477,14 @@ async function confirmGeneratePDF() {
 
     try {
         Swal.fire({ title: 'กำลังดึงข้อมูลและรันเลขเอกสาร...', allowOutsideClick: false, didOpen: () => { Swal.showLoading(); } });
-        const { data: custData } = await supabaseClient.from('customer').select('*').eq('full_name', finalBillTo).maybeSingle();
-        let custInfoToSend = { officialName: custData ? custData.full_name : finalBillTo, address: custData && custData.address ? custData.address : "", taxId: custData && custData.tax_id ? String(custData.tax_id) : "", creditDays: custData && custData.credit_days ? parseInt(custData.credit_days) : 0 };
+        
+        let custData = await getCustomerInfo(finalBillTo);
+        let custInfoToSend = { 
+            officialName: custData && custData.full_name ? custData.full_name : finalBillTo, 
+            address: custData && custData.address ? custData.address : "", 
+            taxId: custData && custData.tax_id ? String(custData.tax_id).padStart(13, '0') : "", 
+            creditDays: custData && custData.credit_days ? parseInt(custData.credit_days) : 0 
+        };
 
         let yy = (new Date(invDate).getFullYear() + 543).toString().slice(-2); let mm = String(new Date(invDate).getMonth() + 1).padStart(2, '0'); let prefix = "INV" + yy + mm; let finalInvNo = customInvNo;
         if (!finalInvNo) {
@@ -488,7 +514,7 @@ async function confirmGeneratePDF() {
             let htmlContent = '';
             if (res.pdfUrls && res.pdfUrls.length > 1) { htmlContent = `<p class="text-muted">บิลแยกประเภทพร้อมแล้ว</p><div class="d-flex flex-column gap-3 mt-3 px-2"><a href="${res.pdfUrls[0]}" target="_blank" class="btn btn-primary rounded-pill fw-bold shadow-sm py-2">บิลค่าขนส่ง</a><a href="${res.pdfUrls[1]}" target="_blank" class="btn btn-light text-primary border-primary rounded-pill fw-bold shadow-sm py-2">บิลสำรองจ่าย</a></div>`; } 
             else { htmlContent = `<p class="text-muted">เอกสารพร้อมใช้งาน</p><a href="${res.pdfUrl}" target="_blank" class="btn btn-primary btn-sm rounded-pill mt-2 px-5 fw-bold shadow-sm" onclick="Swal.close()"><i class="bi bi-file-earmark-pdf-fill me-1"></i> เปิดดู Invoice</a>`; }
-            Swal.fire({ icon: 'success', title: 'สร้าง Invoice สำเร็จ!', html: htmlContent, showConfirmButton: false, showCloseButton: true, didClose: () => { document.getElementById('tab-history').click(); forceSyncAll(); } });
+            Swal.fire({ icon: 'success', title: 'สร้าง Invoice สำเร็จ!', html: htmlContent, showConfirmButton: false, showCloseButton: true, didClose: () => { document.getElementById('tab-history').click(); if (typeof forceSyncBillingData === 'function') forceSyncBillingData(); } });
         } else { Swal.fire({ icon: 'error', title: 'เกิดข้อผิดพลาดจากระบบออกเอกสาร', text: res.message }); }
     } catch (err) { Swal.fire('เกิดข้อผิดพลาด', err.message, 'error'); }
 }
@@ -658,7 +684,7 @@ async function openEditInvoiceModal(invoiceNo) {
                         <div class="col-md-4"><label class="small text-muted fw-bold mb-0">ทะเบียนรถ</label><input type="text" class="form-control form-control-sm bg-white e-plate border-secondary" value="${itm.vehicle_plate || ''}"></div>
                     </div>
                     <div class="row g-2"><div class="col-md-6 border-end border-light"><p class="text-success fw-bold small mb-1"><i class="bi bi-arrow-up-right-circle me-1"></i>รายได้ (Income)</p><div class="row g-1"><div class="col-6"><label class="small text-muted mb-0" style="font-size: 0.7rem;">ราคาเที่ยว</label><input type="number" class="form-control form-control-sm bg-white e-price" value="${itm.price || 0}"></div><div class="col-6"><label class="small text-muted mb-0" style="font-size: 0.7rem;">ต่อระยะ</label><input type="number" class="form-control form-control-sm bg-white e-ext1" value="${itm.extender || 0}"></div><div class="col-6"><label class="small text-muted mb-0" style="font-size: 0.7rem;">ค้างหาง</label><input type="number" class="form-control form-control-sm bg-white e-ext2" value="${itm.drop_tail || 0}"></div><div class="col-6"><label class="small text-muted mb-0" style="font-size: 0.7rem;">เสียเวลา</label><input type="number" class="form-control form-control-sm bg-white e-ext3" value="${itm.lose_time || 0}"></div></div></div>
-                <div class="col-md-6"><p class="text-danger fw-bold small mb-1"><i class="bi bi-arrow-down-right-circle me-1"></i>สำรองจ่าย (Advance)</p><div class="row g-1"><div class="col-4"><label class="small text-muted mb-0" style="font-size: 0.7rem;">รับตู้</label><input type="number" class="form-control form-control-sm bg-white e-adv1" value="${itm.receive || 0}"></div><div class="col-4"><label class="small text-muted mb-0" style="font-size: 0.7rem;">คืนตู้</label><input type="number" class="form-control form-control-sm bg-white e-adv2" value="${itm.return || 0}"></div><div class="col-4"><label class="small text-muted mb-0" style="font-size: 0.7rem;">ผ่านท่า</label><input type="number" class="form-control form-control-sm bg-white e-adv3" value="${itm.terminal_charge || 0}"></div><div class="col-4"><label class="small text-muted mb-0" style="font-size: 0.7rem;">ซ่อมตู้</label><input type="number" class="form-control form-control-sm bg-white e-adv4" value="${itm.repair || 0}"></div><div class="col-4"><label class="small text-muted mb-0" style="font-size: 0.7rem;">ล้างตู้</label><input type="number" class="form-control form-control-sm bg-white e-adv5" value="${itm.cleaning || 0}"></div></div></div></div></div></div>`;
+                <div class="col-md-6"><p class="text-danger fw-bold small mb-1"><i class="bi bi-arrow-down-right-circle me-1"></i>สำรองจ่าย (Advance)</p><div class="row g-1"><div class="col-4"><label class="small text-muted mb-0" style="font-size: 0.7rem;">รับตู้</label><input type="number" class="form-control form-control-sm bg-white e-adv1" value="${itm.receive || 0}"></div><div class="col-4"><label class="small text-muted mb-0" style="font-size: 0.7rem;">คืนตู้</label><input type="number" class="form-control form-control-sm bg-white e-adv2" value="${itm.return || 0}"></div><div class="col-4"><label class="small text-muted mb-0" style="font-size: 0.7rem;">ผ่านท่า</label><input type="number" class="form-control form-control-sm bg-white e-adv3" value="${itm.terminal_charge || 0}"></div><div class="col-4"><label class="small text-muted mb-0" style="font-size: 0.7rem;">ซ่อมตู้</label><input type="number" class="form-control form-control-sm bg-white e-adv4" value="${itm.repair || 0}"></div><div class="col-4"><label class="small text-muted mb-0" style="font-size: 0.7rem;">ล้างตู้</label><input type="number" class="form-control form-control-sm bg-white e-adv5" value="${itm.cleaning || 0}"></div><div class="col-12 m-0"><hr class="m-0 opacity-25"></div><div class="col-8 mt-1"><label class="small text-muted mb-0" style="font-size: 0.7rem;">ยอดอื่น 1 (ชื่อ)</label><input type="text" class="form-control form-control-sm bg-white e-extn1" value="${itm.other_exp_name_1 || ''}"></div><div class="col-4 mt-1"><label class="small text-muted mb-0" style="font-size: 0.7rem;">ยอด</label><input type="number" class="form-control form-control-sm bg-white e-extv1" value="${itm.other_exp_amt_1 || 0}"></div></div></div></div></div></div>`;
         });
         document.getElementById('editItemsContainer').innerHTML = html;
         if (typeof hideGlobalLoader === 'function') hideGlobalLoader();
@@ -667,10 +693,21 @@ async function openEditInvoiceModal(invoiceNo) {
 }
 
 async function confirmEditInvoice() {
-    let invNo = document.getElementById('editInvNo').value; let invDate = document.getElementById('editInvDate').value; let customer = document.getElementById('editCustomer').value.trim(); let isSplit = document.getElementById('editIsSplit').checked;
+    let invNo = document.getElementById('editInvNo').value; 
+    let invDate = document.getElementById('editInvDate').value; 
+    let customer = document.getElementById('editCustomer').value.trim(); 
+    let isSplit = document.getElementById('editIsSplit').checked;
+    
     if (!invDate || !customer) return Swal.fire({ icon: 'warning', text: 'กรุณาระบุวันที่และชื่อลูกค้า' });
 
-    Swal.fire({ title: 'ยืนยันการอัปเดต?', text: "ระบบจะอัปเดตข้อมูลตู้และสร้าง PDF ใบใหม่ทับของเดิม", icon: 'warning', showCancelButton: true, confirmButtonColor: '#1e293b', confirmButtonText: 'ยืนยันอัปเดต', cancelButtonText: 'ยกเลิก'
+    Swal.fire({ 
+        title: 'ยืนยันการอัปเดต?', 
+        text: "ระบบจะอัปเดตข้อมูลตู้และสร้าง PDF ใบใหม่ทับของเดิม", 
+        icon: 'warning', 
+        showCancelButton: true, 
+        confirmButtonColor: '#1e293b', 
+        confirmButtonText: 'ยืนยันอัปเดต', 
+        cancelButtonText: 'ยกเลิก'
     }).then(async (result) => {
         if (result.isConfirmed) {
             if (typeof showGlobalLoader === 'function') showGlobalLoader('กำลังบันทึกและสร้างเอกสารใหม่...');
@@ -678,41 +715,44 @@ async function confirmEditInvoice() {
                 const { data: oldData, error: fetchErr } = await supabaseClient.from('invoice_data').select('*').eq('invoice_no', invNo);
                 if (fetchErr) throw fetchErr;
 
-                const { data: custData } = await supabaseClient.from('customer').select('*').eq('full_name', customer).maybeSingle();
-                let custInfoToSend = { officialName: custData ? custData.full_name : customer, address: custData && custData.address ? custData.address : "", taxId: custData && custData.tax_id ? String(custData.tax_id) : "", creditDays: custData && custData.credit_days ? parseInt(custData.credit_days) : 0 };
+                let custData = await getCustomerInfo(customer);
+                let custInfoToSend = { 
+                    officialName: custData && custData.full_name ? custData.full_name : customer, 
+                    address: custData && custData.address ? custData.address : "", 
+                    taxId: custData && custData.tax_id ? String(custData.tax_id).padStart(13, '0') : "", 
+                    creditDays: custData && custData.credit_days ? parseInt(custData.credit_days) : 0 
+                };
 
                 let payload = []; let insertPayload = []; let planUpdates = []; let cards = document.querySelectorAll('.edit-item-card');
-                let parseDate = (d) => d && d.trim() !== '' ? d : null;
-
+                
                 cards.forEach(card => {
                     let booking = card.getAttribute('data-booking'); 
                     let origContainer = card.getAttribute('data-container');
-                    let oldItem = oldData.find(o => o.booking === booking && o.container_no === origContainer) || {};
+                    let rowId = parseInt(card.getAttribute('data-rowid'));
+                    let oldItem = oldData.find(o => o.id === rowId) || oldData.find(o => o.booking === booking && o.container_no === origContainer);
+                    if (!oldItem) oldItem = {};
 
                     let cDate = card.querySelector('.e-date').value;
-                    let cDateParsed = parseDate(cDate);
                     let cContainer = card.querySelector('.e-container').value.trim() || origContainer;
                     let cPlate = card.querySelector('.e-plate').value.trim() || '-';
 
                     let p = parseFloat(card.querySelector('.e-price').value) || 0, e1 = parseFloat(card.querySelector('.e-ext1').value) || 0, e2 = parseFloat(card.querySelector('.e-ext2').value) || 0, e3 = parseFloat(card.querySelector('.e-ext3').value) || 0;
                     let a1 = parseFloat(card.querySelector('.e-adv1').value) || 0, a2 = parseFloat(card.querySelector('.e-adv2').value) || 0, a3 = parseFloat(card.querySelector('.e-adv3').value) || 0, a4 = parseFloat(card.querySelector('.e-adv4').value) || 0, a5 = parseFloat(card.querySelector('.e-adv5').value) || 0;
+                    let n1 = card.querySelector('.e-extn1').value.trim(), v1 = parseFloat(card.querySelector('.e-extv1').value) || 0;
 
-                    let incTot = p + e1 + e2 + e3; let advTot = a1 + a2 + a3 + a4 + a5;
+                    let incTot = p + e1 + e2 + e3; let advTot = a1 + a2 + a3 + a4 + a5 + v1;
 
-                    payload.push({ 
-                        rowIdx: oldItem.id, jobCustomer: oldItem.customer, customer: customer, booking: booking, 
-                        date: cDateParsed || oldItem.create_date, plate: cPlate, cy: oldItem.cy_place || '-', load: oldItem.load_place || '-', 
-                        rtn: oldItem.rtn_place || '-', type: oldItem.container_type || '-', container: cContainer, remark: oldItem.comment || '', 
-                        price: p, adv1: a1, adv2: a2, ext1: e1, ext2: e2, ext3: e3, adv4: a4, adv5: a5, adv6: a3, 
-                        incTotal: incTot, advTotal: advTot, grandTotal: incTot + advTot 
-                    });
+                    payload.push({ rowIdx: oldItem.id, jobCustomer: oldItem.customer, customer: customer, booking: booking, date: cDate || null, plate: cPlate, cy: oldItem.cy_place || '-', load: oldItem.load_place || '-', rtn: oldItem.rtn_place || '-', type: oldItem.container_type || '-', container: cContainer, remark: oldItem.comment || '', price: p, adv1: a1, adv2: a2, adv6: a3, ext1: e1, ext2: e2, ext3: e3, adv4: a4, adv5: a5, adv9: 0, incTotal: incTot, advTotal: advTot, grandTotal: incTot + advTot });
 
-                    let newItemForDB = { ...oldItem };
-                    delete newItemForDB.id;
+                    let { id, ...oldItemWithoutId } = oldItem; 
+                    let newItemForDB = { ...oldItemWithoutId };
                     
+                    newItemForDB.invoice_no = invNo;
+                    newItemForDB.status = 'วางบิลแล้ว';
+                    newItemForDB.bill_status = 'วางบิลแล้ว';
                     newItemForDB.customer = customer;
                     newItemForDB.bill_date = invDate;
-                    newItemForDB.create_date = cDateParsed || oldItem.create_date;
+                    newItemForDB.create_date = (cDate && cDate.trim() !== '') ? cDate : oldItem.create_date;
                     newItemForDB.container_no = cContainer;
                     newItemForDB.vehicle_plate = cPlate;
                     newItemForDB.price = p;
@@ -724,10 +764,18 @@ async function confirmEditInvoice() {
                     newItemForDB.terminal_charge = a3;
                     newItemForDB.repair = String(a4);
                     newItemForDB.cleaning = a5;
+                    
+                    delete newItemForDB.shore;
+                    delete newItemForDB.other_exp_name_1;
+                    delete newItemForDB.other_exp_amt_1;
+                    delete newItemForDB.other_exp_name_2;
+                    delete newItemForDB.other_exp_amt_2;
+
                     newItemForDB.total_income = incTot;
                     newItemForDB.total_advance = String(advTot);
                     newItemForDB.grand_total = incTot + advTot;
                     newItemForDB.user_action = currentUser;
+                    newItemForDB.ref_key = `${booking}_${cContainer}_${invNo}`;
                     
                     insertPayload.push(newItemForDB);
 
@@ -736,7 +784,7 @@ async function confirmEditInvoice() {
                         .update({ 
                             container_no: cContainer, 
                             vehicle_plate: cPlate, 
-                            booking_date: cDateParsed || oldItem.create_date,
+                            booking_date: (cDate && cDate.trim() !== '') ? cDate : null,
                             price: p, extender: e1, tail_drop: e2, lose_time: e3,
                             receive: String(a1), retrun: String(a2), terminal_charge: a3,
                             repair: String(a4), cleaning: a5
@@ -747,12 +795,8 @@ async function confirmEditInvoice() {
                     );
                 });
 
-                const planResults = await Promise.all(planUpdates);
-                const planError = planResults.find(r => r.error);
-                if (planError) throw new Error("อัปเดต plan_data ไม่สำเร็จ: " + planError.error.message);
-
+                await Promise.all(planUpdates);
                 await callInvAPI('rollbackInvoice', { invoiceNo: invNo }, 1, false);
-
                 const res = await callInvAPI('generateInvoicePDF', { payload: payload, invoiceDate: invDate, billingUser: currentUser, isSplit: isSplit, customInvNo: invNo, custInfo: custInfoToSend }, 1, false);
                 
                 if (res.success) {
@@ -761,6 +805,8 @@ async function confirmEditInvoice() {
 
                     const { error: insErr } = await supabaseClient.from('invoice_data').insert(insertPayload);
                     if (insErr) throw new Error("บันทึกข้อมูลใหม่ไม่สำเร็จ: " + insErr.message);
+                    
+                    await new Promise(resolve => setTimeout(resolve, 800));
 
                     bootstrap.Modal.getInstance(document.getElementById('editInvoiceModal')).hide();
                     if (typeof hideGlobalLoader === 'function') hideGlobalLoader();
@@ -768,15 +814,9 @@ async function confirmEditInvoice() {
                     let htmlContent = '';
                     if (res.pdfUrls && res.pdfUrls.length > 1) { htmlContent = `<p class="text-muted">เอกสารใหม่พร้อมแล้ว</p><div class="d-flex flex-column gap-2 mt-3"><a href="${res.pdfUrls[0]}" target="_blank" class="btn btn-primary rounded-pill fw-bold btn-sm">บิลค่าขนส่ง</a><a href="${res.pdfUrls[1]}" target="_blank" class="btn btn-light text-primary border-primary rounded-pill fw-bold btn-sm">บิลสำรองจ่าย</a></div>`; } 
                     else { htmlContent = `<p class="text-muted">อัปเดตเอกสารเรียบร้อยแล้ว</p><a href="${res.pdfUrl}" target="_blank" class="btn btn-dark btn-sm rounded-pill mt-3 px-4 fw-bold shadow-sm" onclick="Swal.close()"><i class="bi bi-file-earmark-pdf me-1"></i> เปิดดูเอกสาร</a>`; }
-                    Swal.fire({ icon: 'success', title: 'อัปเดตสำเร็จ!', html: htmlContent, showConfirmButton: false, showCloseButton: true, didClose: () => { forceSyncAll(); } });
-                } else { 
-                    if (typeof hideGlobalLoader === 'function') hideGlobalLoader(); 
-                    Swal.fire({ icon: 'error', text: res.message }); 
-                }
-            } catch (err) { 
-                if (typeof hideGlobalLoader === 'function') hideGlobalLoader(); 
-                Swal.fire('เกิดข้อผิดพลาด', err.message, 'error'); 
-            }
+                    Swal.fire({ icon: 'success', title: 'อัปเดตสำเร็จ!', html: htmlContent, showConfirmButton: false, showCloseButton: true, didClose: () => { if (typeof forceSyncBillingData === 'function') forceSyncBillingData(); } });
+                } else { if (typeof hideGlobalLoader === 'function') hideGlobalLoader(); Swal.fire({ icon: 'error', text: res.message }); }
+            } catch (err) { if (typeof hideGlobalLoader === 'function') hideGlobalLoader(); Swal.fire('เกิดข้อผิดพลาด', err.message, 'error'); }
         }
     });
 }
@@ -791,7 +831,8 @@ function promptRollback(invoiceNo) {
                 await supabaseClient.from('invoice_data').delete().eq('invoice_no', invoiceNo);
                 await callInvAPI('rollbackInvoice', { invoiceNo: invoiceNo }); 
                 if (typeof hideGlobalLoader === 'function') hideGlobalLoader();
-                Swal.fire({ icon: 'success', title: 'สำเร็จ', text: 'ยกเลิกบิลเรียบร้อย' }); forceSyncAll();
+                Swal.fire({ icon: 'success', title: 'สำเร็จ', text: 'ยกเลิกบิลเรียบร้อย' }); 
+                if (typeof forceSyncBillingData === 'function') forceSyncBillingData();
             } catch (err) { if (typeof hideGlobalLoader === 'function') hideGlobalLoader(); Swal.fire('เกิดข้อผิดพลาด', err.message, 'error'); }
         }
     });
@@ -807,7 +848,8 @@ function promptRollbackReceipt(invoiceNo, docNoToDel, docTypeToDel) {
                 let updatePayload = docTypeToDel === 'REC' ? { receive_no: null } : { voucher_no: null };
                 await supabaseClient.from('invoice_data').update(updatePayload).eq('invoice_no', invoiceNo);
                 if (typeof hideGlobalLoader === 'function') hideGlobalLoader();
-                Swal.fire({ icon: 'success', title: 'ลบสำเร็จ', text: 'ยกเลิกเอกสารเรียบร้อย' }); forceSyncAll();
+                Swal.fire({ icon: 'success', title: 'ลบสำเร็จ', text: 'ยกเลิกเอกสารเรียบร้อย' }); 
+                if (typeof forceSyncBillingData === 'function') forceSyncBillingData();
             } catch (err) { if (typeof hideGlobalLoader === 'function') hideGlobalLoader(); Swal.fire('เกิดข้อผิดพลาด', err.message, 'error'); }
         }
     });
@@ -849,7 +891,10 @@ function openReceiptModal(invNo, docType) {
 }
 
 async function confirmGenerateReceipt() {
-    let recDate = document.getElementById('modReceiptDate').value; let layoutMode = document.getElementById('recModeDetail').checked ? 'DETAIL' : 'SUMMARY'; let showDueDate = document.getElementById('recShowDueDate').checked;
+    let recDate = document.getElementById('modReceiptDate').value; 
+    let layoutMode = document.getElementById('recModeDetail').checked ? 'DETAIL' : 'SUMMARY'; 
+    let showDueDate = document.getElementById('recShowDueDate').checked;
+    
     if (!recDate) return Swal.fire({ icon: 'warning', text: 'กรุณาระบุวันที่' });
     document.getElementById('btnConfirmReceipt').disabled = true;
 
@@ -858,18 +903,53 @@ async function confirmGenerateReceipt() {
         const { data: bData } = await supabaseClient.from('invoice_data').select('*').eq('invoice_no', currentReceiptInvNo);
         if(!bData || bData.length === 0) throw new Error("ไม่พบข้อมูลบิลนี้ในระบบ");
 
-        const { data: cData } = await supabaseClient.from('customer').select('*').eq('full_name', bData[0].customer).maybeSingle();
-        let custInfoToSend = { officialName: cData ? cData.full_name : bData[0].customer, address: cData && cData.address ? cData.address : "", taxId: cData && cData.tax_id ? String(cData.tax_id) : "", creditDays: cData && cData.credit_days ? parseInt(cData.credit_days) : 0 };
+        let custData = await getCustomerInfo(bData[0].customer);
+        let custInfoToSend = { 
+            officialName: custData && custData.full_name ? custData.full_name : bData[0].customer, 
+            address: custData && custData.address ? custData.address : "", 
+            taxId: custData && custData.tax_id ? String(custData.tax_id).padStart(13, '0') : "", 
+            creditDays: custData && custData.credit_days ? parseInt(custData.credit_days) : 0 
+        };
 
         let itemsPayload = bData.map(r => {
             let inc = parseFloat(r.total_income) || 0; let adv = parseFloat(r.total_advance) || 0;
-            return { container: r.container_no, plate: r.vehicle_plate, amountToBill: currentDocType === 'VOUCHER' ? adv : inc, advDetails: { a1: parseFloat(r.receive)||0, a2: parseFloat(r.return)||0, a_pass: parseFloat(r.terminal_charge)||0, a_repair: parseFloat(r.repair)||0, a_clean: parseFloat(r.cleaning)||0, a_cho: parseFloat(r.shore)||0, n1: r.other_exp_name_1||'', v1: parseFloat(r.other_exp_amt_1)||0 } }
+            return { container: r.container_no, plate: r.vehicle_plate, amountToBill: currentDocType === 'VOUCHER' ? adv : inc, advDetails: { a1: parseFloat(r.receive)||0, a2: parseFloat(r.return)||0, a_pass: parseFloat(r.terminal_charge)||0, a_repair: parseFloat(r.repair)||0, a_clean: parseFloat(r.cleaning)||0, a_cho: 0, n1: '', v1: 0 } }
         });
 
-        const res = await callInvAPI('generateReceiptPDF', { invoiceNo: currentReceiptInvNo, docDate: recDate, layoutMode: layoutMode, billingUser: currentUser, docType: currentDocType, showDueDate: showDueDate, custInfo: custInfoToSend, itemsPayload: itemsPayload }, 1, false);
+        let d = new Date(recDate);
+        let yy = (d.getFullYear() + 543).toString().slice(-2);
+        let mm = String(d.getMonth() + 1).padStart(2, '0');
+        let prefix = (currentDocType === 'VOUCHER' ? "VOU" : "REC") + yy + mm;
+        
+        let searchCol = currentDocType === 'RECEIPT' ? 'receive_no' : 'voucher_no';
+        const { data: lastDoc } = await supabaseClient.from('invoice_data')
+            .select(searchCol)
+            .ilike(searchCol, `${prefix}%`)
+            .not(searchCol, 'is', null)
+            .order(searchCol, { ascending: false })
+            .limit(1);
+
+        let nextSeq = 1; 
+        if (lastDoc && lastDoc.length > 0 && lastDoc[0][searchCol]) { 
+            let lastSeqStr = lastDoc[0][searchCol].replace(prefix, '').split('-')[0]; 
+            nextSeq = (parseInt(lastSeqStr, 10) || 0) + 1; 
+        }
+        let finalDocNo = prefix + String(nextSeq).padStart(3, '0');
+
+        const res = await callInvAPI('generateReceiptPDF', { 
+            invoiceNo: currentReceiptInvNo, 
+            docDate: recDate, 
+            layoutMode: layoutMode, 
+            billingUser: currentUser, 
+            docType: currentDocType, 
+            showDueDate: showDueDate, 
+            custInfo: custInfoToSend, 
+            itemsPayload: itemsPayload,
+            customDocNo: finalDocNo 
+        }, 1, false);
 
         if (res.success) {
-            let updatePayload = currentDocType === 'RECEIPT' ? { receive_no: res.receiptNo } : { voucher_no: res.receiptNo };
+            let updatePayload = currentDocType === 'RECEIPT' ? { receive_no: finalDocNo } : { voucher_no: finalDocNo };
             const { error } = await supabaseClient.from('invoice_data').update(updatePayload).eq('invoice_no', currentReceiptInvNo);
             
             if (error) {
@@ -881,7 +961,7 @@ async function confirmGenerateReceipt() {
             if (typeof hideGlobalLoader === 'function') hideGlobalLoader();
 
             let docName = currentDocType === 'RECEIPT' ? 'ใบเสร็จรับเงิน' : 'ใบสำคัญรับ'; let btnClass = currentDocType === 'RECEIPT' ? 'btn-success' : 'btn-info text-dark';
-            Swal.fire({ icon: 'success', title: `สร้าง${docName}สำเร็จ!`, html: `<a href="${res.pdfUrl}" target="_blank" class="btn ${btnClass} btn-sm rounded-pill mt-3 px-4 fw-bold shadow-sm" onclick="Swal.close()"><i class="bi bi-file-earmark-pdf-fill me-1"></i> เปิดดูเอกสาร</a>`, showConfirmButton: false, showCloseButton: true, didClose: () => { forceSyncAll(); } });
+            Swal.fire({ icon: 'success', title: `สร้าง${docName}สำเร็จ!`, html: `<a href="${res.pdfUrl}" target="_blank" class="btn ${btnClass} btn-sm rounded-pill mt-3 px-4 fw-bold shadow-sm" onclick="Swal.close()"><i class="bi bi-file-earmark-pdf-fill me-1"></i> เปิดดูเอกสาร</a>`, showConfirmButton: false, showCloseButton: true, didClose: () => { if (typeof forceSyncBillingData === 'function') forceSyncBillingData(); } });
         } else { 
             if (typeof hideGlobalLoader === 'function') hideGlobalLoader(); document.getElementById('btnConfirmReceipt').disabled = false;
             Swal.fire({ icon: 'error', text: res.message }); 
