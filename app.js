@@ -163,7 +163,7 @@ function startBackgroundSync() {
 }
 
 async function loadPlanDataInitial() {
-    showGlobalLoader('กำลังดึงฐานข้อมูลจาก Supabase...');
+    showGlobalLoader('กำลังดึงฐานข้อมูล...รอแปบนึง...');
     try {
         let allPlanData = [];
         let from = 0;

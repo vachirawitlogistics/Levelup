@@ -171,8 +171,11 @@ async function loadBillingData(isLogin = false, forceSync = false) {
       let adv1 = parseFloat(r[18]) || 0, adv2 = parseFloat(r[19]) || 0;
       let adv3 = parseFloat(r[24]) || 0, adv4 = parseFloat(r[25]) || 0, adv5 = parseFloat(r[26]) || 0, adv6 = parseFloat(r[27]) || 0;
       let ext_v1 = parseFloat(r[29]) || 0, ext_v2 = parseFloat(r[31]) || 0;
-      let incTot = price + ext1 + ext2 + ext3;
-      let advTot = adv1 + adv2 + adv3 + adv4 + adv5 + adv6 + ext_v1 + ext_v2;
+      
+      // ย้าย Other 1 (ext_v1) มารวมกับ Income (incTot)
+      let incTot = price + ext1 + ext2 + ext3 + ext_v1;
+      let advTot = adv1 + adv2 + adv3 + adv4 + adv5 + adv6 + ext_v2;
+      
       let rowObj = { rowData: r, rowIdx: r[36], incTot: incTot, advTot: advTot, grandTot: incTot + advTot };
 
       if (row.status === 'จบงานรอวางบิล') auditData.push(rowObj);
@@ -319,7 +322,8 @@ function renderAuditTab() {
                 <div class="fw-bold text-primary bg-white border px-3 py-1 shadow-sm rounded-pill small">รวมรายการนี้: <span class="row-tot-a ms-1">฿${total.toLocaleString(undefined, {minimumFractionDigits:2})}</span></div>
               </div>
               <div class="row g-2">
-                <div class="col-lg-4">
+                <!-- ฝั่งรายได้ (Income) -->
+                <div class="col-lg-5">
                   <div class="bg-white border rounded-3 p-2 shadow-sm h-100">
                     <div class="d-flex justify-content-between mb-2">
                       <span class="text-success fw-bold small"><i class="bi bi-arrow-up-right-circle me-1"></i>รายได้</span>
@@ -330,29 +334,33 @@ function renderAuditTab() {
                       <div class="col-6"><label class="small text-muted mb-0" style="font-size: 0.7rem;">ต่อระยะ</label><input type="number" class="form-control form-control-sm text-end inp-inc-a in-ext1" data-name="ต่อระยะ" data-orig="${parseFloat(r[20])||0}" value="${parseFloat(r[20])||0}" oninput="updateCalcA(this, '${safeBkg}')"></div>
                       <div class="col-6"><label class="small text-muted mb-0" style="font-size: 0.7rem;">ค้างหาง</label><input type="number" class="form-control form-control-sm text-end inp-inc-a in-ext2" data-name="ค้างหาง" data-orig="${parseFloat(r[21])||0}" value="${parseFloat(r[21])||0}" oninput="updateCalcA(this, '${safeBkg}')"></div>
                       <div class="col-6"><label class="small text-muted mb-0" style="font-size: 0.7rem;">เสียเวลา</label><input type="number" class="form-control form-control-sm text-end inp-inc-a in-ext3" data-name="เสียเวลา" data-orig="${parseFloat(r[22])||0}" value="${parseFloat(r[22])||0}" oninput="updateCalcA(this, '${safeBkg}')"></div>
+                      
+                      <div class="col-12 m-0"><hr class="m-0 opacity-25"></div>
+                      
+                      <div class="col-8 mt-1"><label class="small text-muted mb-0" style="font-size: 0.7rem;">ยอดอื่น 1 (ชื่อ)</label><input type="text" class="form-control form-control-sm in-extn1" data-name="ชื่อยอดอื่น 1" data-orig="${r[28]||''}" value="${r[28]||''}" oninput="updateCalcA(this, '${safeBkg}'); syncOtherNameAudit(this, 'in-extn1', '${safeBkg}')"></div>
+                      <div class="col-4 mt-1"><label class="small text-muted mb-0" style="font-size: 0.7rem;">ยอดเงิน 1</label><input type="number" class="form-control form-control-sm text-end inp-inc-a in-extv1" data-name="ยอดเงิน 1" data-orig="${parseFloat(r[29])||0}" value="${parseFloat(r[29])||0}" oninput="updateCalcA(this, '${safeBkg}')"></div>
                     </div>
                   </div>
                 </div>
-                <div class="col-lg-8">
+                <!-- ฝั่งสำรองจ่าย (Advance) -->
+                <div class="col-lg-7">
                   <div class="bg-white border rounded-3 p-2 shadow-sm h-100">
                     <div class="d-flex justify-content-between mb-2">
                       <span class="text-danger fw-bold small"><i class="bi bi-arrow-down-right-circle me-1"></i>สำรองจ่าย</span>
                       <span class="text-danger fw-bold small row-adv-a">฿${obj.advTot.toLocaleString(undefined, {minimumFractionDigits:2})}</span>
                     </div>
                     <div class="row g-2">
-                      <div class="col-4 col-lg-2"><label class="small text-muted mb-0" style="font-size: 0.7rem;">รับตู้</label><input type="number" class="form-control form-control-sm text-end inp-adv-a in-adv1" data-name="รับตู้" data-orig="${parseFloat(r[18])||0}" value="${parseFloat(r[18])||0}" oninput="updateCalcA(this, '${safeBkg}')"></div>
-                      <div class="col-4 col-lg-2"><label class="small text-muted mb-0" style="font-size: 0.7rem;">คืนตู้</label><input type="number" class="form-control form-control-sm text-end inp-adv-a in-adv2" data-name="คืนตู้" data-orig="${parseFloat(r[19])||0}" value="${parseFloat(r[19])||0}" oninput="updateCalcA(this, '${safeBkg}')"></div>
-                      <div class="col-4 col-lg-2"><label class="small text-muted mb-0" style="font-size: 0.7rem;">ผ่านท่า</label><input type="number" class="form-control form-control-sm text-end inp-adv-a in-adv3" data-name="ผ่านท่า" data-orig="${parseFloat(r[24])||0}" value="${parseFloat(r[24])||0}" oninput="updateCalcA(this, '${safeBkg}')"></div>
-                      <div class="col-4 col-lg-2"><label class="small text-muted mb-0" style="font-size: 0.7rem;">ซ่อมตู้</label><input type="number" class="form-control form-control-sm text-end inp-adv-a in-adv4" data-name="ซ่อมตู้" data-orig="${parseFloat(r[25])||0}" value="${parseFloat(r[25])||0}" oninput="updateCalcA(this, '${safeBkg}')"></div>
-                      <div class="col-4 col-lg-2"><label class="small text-muted mb-0" style="font-size: 0.7rem;">ล้างตู้</label><input type="number" class="form-control form-control-sm text-end inp-adv-a in-adv5" data-name="ล้างตู้" data-orig="${parseFloat(r[26])||0}" value="${parseFloat(r[26])||0}" oninput="updateCalcA(this, '${safeBkg}')"></div>
-                      <div class="col-4 col-lg-2"><label class="small text-primary mb-0 fw-bold" style="font-size: 0.7rem;">ค่าชอ</label><input type="number" class="form-control form-control-sm text-end border-primary bg-primary bg-opacity-10 inp-adv-a in-adv6" data-name="ค่าชอ" data-orig="${parseFloat(r[27])||0}" value="${parseFloat(r[27])||0}" oninput="updateCalcA(this, '${safeBkg}')"></div>
+                      <div class="col-4"><label class="small text-muted mb-0" style="font-size: 0.7rem;">รับตู้</label><input type="number" class="form-control form-control-sm text-end inp-adv-a in-adv1" data-name="รับตู้" data-orig="${parseFloat(r[18])||0}" value="${parseFloat(r[18])||0}" oninput="updateCalcA(this, '${safeBkg}')"></div>
+                      <div class="col-4"><label class="small text-muted mb-0" style="font-size: 0.7rem;">คืนตู้</label><input type="number" class="form-control form-control-sm text-end inp-adv-a in-adv2" data-name="คืนตู้" data-orig="${parseFloat(r[19])||0}" value="${parseFloat(r[19])||0}" oninput="updateCalcA(this, '${safeBkg}')"></div>
+                      <div class="col-4"><label class="small text-muted mb-0" style="font-size: 0.7rem;">ผ่านท่า</label><input type="number" class="form-control form-control-sm text-end inp-adv-a in-adv3" data-name="ผ่านท่า" data-orig="${parseFloat(r[24])||0}" value="${parseFloat(r[24])||0}" oninput="updateCalcA(this, '${safeBkg}')"></div>
+                      <div class="col-4"><label class="small text-muted mb-0" style="font-size: 0.7rem;">ซ่อมตู้</label><input type="number" class="form-control form-control-sm text-end inp-adv-a in-adv4" data-name="ซ่อมตู้" data-orig="${parseFloat(r[25])||0}" value="${parseFloat(r[25])||0}" oninput="updateCalcA(this, '${safeBkg}')"></div>
+                      <div class="col-4"><label class="small text-muted mb-0" style="font-size: 0.7rem;">ล้างตู้</label><input type="number" class="form-control form-control-sm text-end inp-adv-a in-adv5" data-name="ล้างตู้" data-orig="${parseFloat(r[26])||0}" value="${parseFloat(r[26])||0}" oninput="updateCalcA(this, '${safeBkg}')"></div>
+                      <div class="col-4"><label class="small text-primary mb-0 fw-bold" style="font-size: 0.7rem;">ค่าชอ</label><input type="number" class="form-control form-control-sm text-end border-primary bg-primary bg-opacity-10 inp-adv-a in-adv6" data-name="ค่าชอ" data-orig="${parseFloat(r[27])||0}" value="${parseFloat(r[27])||0}" oninput="updateCalcA(this, '${safeBkg}')"></div>
                       
                       <div class="col-12 m-0"><hr class="m-0 opacity-25"></div>
                       
-                      <div class="col-8 col-lg-4 mt-1"><label class="small text-muted mb-0" style="font-size: 0.7rem;">ยอดอื่น 1 (ชื่อ)</label><input type="text" class="form-control form-control-sm in-extn1" data-name="ชื่อยอดอื่น 1" data-orig="${r[28]||''}" value="${r[28]||''}" oninput="updateCalcA(this, '${safeBkg}'); syncOtherNameAudit(this, 'in-extn1', '${safeBkg}')"></div>
-                      <div class="col-4 col-lg-2 mt-1"><label class="small text-muted mb-0" style="font-size: 0.7rem;">ยอดเงิน 1</label><input type="number" class="form-control form-control-sm text-end inp-adv-a in-extv1" data-name="ยอดเงิน 1" data-orig="${parseFloat(r[29])||0}" value="${parseFloat(r[29])||0}" oninput="updateCalcA(this, '${safeBkg}')"></div>
-                      <div class="col-8 col-lg-4 mt-1"><label class="small text-muted mb-0" style="font-size: 0.7rem;">ยอดอื่น 2 (ชื่อ)</label><input type="text" class="form-control form-control-sm in-extn2" data-name="ชื่อยอดอื่น 2" data-orig="${r[30]||''}" value="${r[30]||''}" oninput="updateCalcA(this, '${safeBkg}'); syncOtherNameAudit(this, 'in-extn2', '${safeBkg}')"></div>
-                      <div class="col-4 col-lg-2 mt-1"><label class="small text-muted mb-0" style="font-size: 0.7rem;">ยอดเงิน 2</label><input type="number" class="form-control form-control-sm text-end inp-adv-a in-extv2" data-name="ยอดเงิน 2" data-orig="${parseFloat(r[31])||0}" value="${parseFloat(r[31])||0}" oninput="updateCalcA(this, '${safeBkg}')"></div>
+                      <div class="col-8 mt-1"><label class="small text-muted mb-0" style="font-size: 0.7rem;">ยอดอื่น 2 (ชื่อ)</label><input type="text" class="form-control form-control-sm in-extn2" data-name="ชื่อยอดอื่น 2" data-orig="${r[30]||''}" value="${r[30]||''}" oninput="updateCalcA(this, '${safeBkg}'); syncOtherNameAudit(this, 'in-extn2', '${safeBkg}')"></div>
+                      <div class="col-4 mt-1"><label class="small text-muted mb-0" style="font-size: 0.7rem;">ยอดเงิน 2</label><input type="number" class="form-control form-control-sm text-end inp-adv-a in-extv2" data-name="ยอดเงิน 2" data-orig="${parseFloat(r[31])||0}" value="${parseFloat(r[31])||0}" oninput="updateCalcA(this, '${safeBkg}')"></div>
                     </div>
                   </div>
                 </div>
@@ -794,7 +802,7 @@ async function confirmGeneratePDF() {
       finalInvNo = prefix + String(nextSeq).padStart(3, '0');
     }
 
-    Swal.fire({ title: 'กำลังสร้างไฟล์ PDF...', text: 'รอสักครู่.....', allowOutsideClick: false, didOpen: () => { Swal.showLoading(); } });
+    Swal.fire({ title: 'กำลังสร้างไฟล์ PDF...', text: 'รอสักครู่.....ใจเย็นๆเหมือนน้ำต้มไก่', allowOutsideClick: false, didOpen: () => { Swal.showLoading(); } });
     
     const res = await callInvAPI('generateInvoicePDF', { 
       payload: tempPayloadForPDF, 
@@ -1124,31 +1132,34 @@ async function openEditInvoiceModal(invoiceNo) {
               <div class="col-md-4"><label class="small text-muted fw-bold mb-0">ทะเบียนรถ</label><input type="text" class="form-control form-control-sm bg-white e-plate border-secondary" value="${itm.vehicle_plate || ''}"></div>
             </div>
             <div class="row g-2">
-              <div class="col-lg-4 border-end border-light">
+              <div class="col-lg-5 border-end border-light">
                 <p class="text-success fw-bold small mb-1"><i class="bi bi-arrow-up-right-circle me-1"></i>รายได้ (Income)</p>
                 <div class="row g-2">
                   <div class="col-6"><label class="small text-muted mb-0" style="font-size: 0.7rem;">ราคาเที่ยว</label><input type="number" class="form-control form-control-sm bg-white e-price" value="${itm.price || 0}"></div>
                   <div class="col-6"><label class="small text-muted mb-0" style="font-size: 0.7rem;">ต่อระยะ</label><input type="number" class="form-control form-control-sm bg-white e-ext1" value="${itm.extender || 0}"></div>
                   <div class="col-6"><label class="small text-muted mb-0" style="font-size: 0.7rem;">ค้างหาง</label><input type="number" class="form-control form-control-sm bg-white e-ext2" value="${itm.drop_tail || 0}"></div>
                   <div class="col-6"><label class="small text-muted mb-0" style="font-size: 0.7rem;">เสียเวลา</label><input type="number" class="form-control form-control-sm bg-white e-ext3" value="${itm.lose_time || 0}"></div>
-                </div>
-              </div>
-              <div class="col-lg-8">
-                <p class="text-danger fw-bold small mb-1"><i class="bi bi-arrow-down-right-circle me-1"></i>สำรองจ่าย (Advance)</p>
-                <div class="row g-2">
-                  <div class="col-4 col-lg-2"><label class="small text-muted mb-0" style="font-size: 0.7rem;">รับตู้</label><input type="number" class="form-control form-control-sm bg-white e-adv1" value="${itm.receive || 0}"></div>
-                  <div class="col-4 col-lg-2"><label class="small text-muted mb-0" style="font-size: 0.7rem;">คืนตู้</label><input type="number" class="form-control form-control-sm bg-white e-adv2" value="${itm.return || 0}"></div>
-                  <div class="col-4 col-lg-2"><label class="small text-muted mb-0" style="font-size: 0.7rem;">ผ่านท่า</label><input type="number" class="form-control form-control-sm bg-white e-adv3" value="${itm.terminal_charge || 0}"></div>
-                  <div class="col-4 col-lg-2"><label class="small text-muted mb-0" style="font-size: 0.7rem;">ซ่อมตู้</label><input type="number" class="form-control form-control-sm bg-white e-adv4" value="${itm.repair || 0}"></div>
-                  <div class="col-4 col-lg-2"><label class="small text-muted mb-0" style="font-size: 0.7rem;">ล้างตู้</label><input type="number" class="form-control form-control-sm bg-white e-adv5" value="${itm.cleaning || 0}"></div>
-                  <div class="col-4 col-lg-2"><label class="small text-primary fw-bold mb-0" style="font-size: 0.7rem;">ค่าชอ</label><input type="number" class="form-control form-control-sm border-primary bg-primary bg-opacity-10 e-adv6" value="${itm.terminal_charge || 0}"></div>
                   
                   <div class="col-12 m-0"><hr class="m-0 opacity-25"></div>
                   
-                  <div class="col-8 col-lg-4 mt-1"><label class="small text-muted mb-0" style="font-size: 0.7rem;">ยอดอื่น 1 (ชื่อ)</label><input type="text" class="form-control form-control-sm bg-white e-extn1" value="${itm.other_exp_name_1 || ''}" oninput="syncOtherNameEdit(this, 'e-extn1')"></div>
-                  <div class="col-4 col-lg-2 mt-1"><label class="small text-muted mb-0" style="font-size: 0.7rem;">ยอดเงิน 1</label><input type="number" class="form-control form-control-sm bg-white e-extv1" value="${itm.other_exp_amt_1 || 0}"></div>
-                  <div class="col-8 col-lg-4 mt-1"><label class="small text-muted mb-0" style="font-size: 0.7rem;">ยอดอื่น 2 (ชื่อ)</label><input type="text" class="form-control form-control-sm bg-white e-extn2" value="${itm.other_exp_name_2 || ''}" oninput="syncOtherNameEdit(this, 'e-extn2')"></div>
-                  <div class="col-4 col-lg-2 mt-1"><label class="small text-muted mb-0" style="font-size: 0.7rem;">ยอดเงิน 2</label><input type="number" class="form-control form-control-sm bg-white e-extv2" value="${itm.other_exp_amt_2 || 0}"></div>
+                  <div class="col-8 mt-1"><label class="small text-muted mb-0" style="font-size: 0.7rem;">ยอดอื่น 1 (ชื่อ)</label><input type="text" class="form-control form-control-sm bg-white e-extn1" value="${itm.other_exp_name_1 || ''}" oninput="syncOtherNameEdit(this, 'e-extn1')"></div>
+                  <div class="col-4 mt-1"><label class="small text-muted mb-0" style="font-size: 0.7rem;">ยอดเงิน 1</label><input type="number" class="form-control form-control-sm bg-white e-extv1" value="${itm.other_exp_amt_1 || 0}"></div>
+                </div>
+              </div>
+              <div class="col-lg-7">
+                <p class="text-danger fw-bold small mb-1"><i class="bi bi-arrow-down-right-circle me-1"></i>สำรองจ่าย (Advance)</p>
+                <div class="row g-2">
+                  <div class="col-4 col-lg-4"><label class="small text-muted mb-0" style="font-size: 0.7rem;">รับตู้</label><input type="number" class="form-control form-control-sm bg-white e-adv1" value="${itm.receive || 0}"></div>
+                  <div class="col-4 col-lg-4"><label class="small text-muted mb-0" style="font-size: 0.7rem;">คืนตู้</label><input type="number" class="form-control form-control-sm bg-white e-adv2" value="${itm.return || 0}"></div>
+                  <div class="col-4 col-lg-4"><label class="small text-muted mb-0" style="font-size: 0.7rem;">ผ่านท่า</label><input type="number" class="form-control form-control-sm bg-white e-adv3" value="${itm.terminal_charge || 0}"></div>
+                  <div class="col-4 col-lg-4"><label class="small text-muted mb-0" style="font-size: 0.7rem;">ซ่อมตู้</label><input type="number" class="form-control form-control-sm bg-white e-adv4" value="${itm.repair || 0}"></div>
+                  <div class="col-4 col-lg-4"><label class="small text-muted mb-0" style="font-size: 0.7rem;">ล้างตู้</label><input type="number" class="form-control form-control-sm bg-white e-adv5" value="${itm.cleaning || 0}"></div>
+                  <div class="col-4 col-lg-4"><label class="small text-primary fw-bold mb-0" style="font-size: 0.7rem;">ค่าชอ</label><input type="number" class="form-control form-control-sm border-primary bg-primary bg-opacity-10 e-adv6" value="${itm.terminal_charge || 0}"></div>
+                  
+                  <div class="col-12 m-0"><hr class="m-0 opacity-25"></div>
+                  
+                  <div class="col-8 mt-1"><label class="small text-muted mb-0" style="font-size: 0.7rem;">ยอดอื่น 2 (ชื่อ)</label><input type="text" class="form-control form-control-sm bg-white e-extn2" value="${itm.other_exp_name_2 || ''}" oninput="syncOtherNameEdit(this, 'e-extn2')"></div>
+                  <div class="col-4 mt-1"><label class="small text-muted mb-0" style="font-size: 0.7rem;">ยอดเงิน 2</label><input type="number" class="form-control form-control-sm bg-white e-extv2" value="${itm.other_exp_amt_2 || 0}"></div>
                 </div>
               </div>
             </div>
@@ -1237,8 +1248,8 @@ async function confirmEditInvoice() {
           let n2 = card.querySelector('.e-extn2').value.trim(), 
               v2 = parseFloat(card.querySelector('.e-extv2').value) || 0;
 
-          let incTot = p + e1 + e2 + e3; 
-          let advTot = a1 + a2 + a3 + a4 + a5 + a6 + v1 + v2;
+          let incTot = p + e1 + e2 + e3 + v1; 
+          let advTot = a1 + a2 + a3 + a4 + a5 + a6 + v2;
 
           payload.push({ 
             rowIdx: oldItem.id, jobCustomer: oldItem.customer, customer: customer, booking: booking, 
@@ -1514,8 +1525,8 @@ async function confirmGenerateReceipt() {
           a_repair: parseFloat(r.repair)||0, 
           a_clean: parseFloat(r.cleaning)||0, 
           a_cho: 0, 
-          n1: '', 
-          v1: 0 
+          n2: r.other_exp_name_2 || '', 
+          v2: parseFloat(r.other_exp_amt_2) || 0 
         } 
       }
     });
@@ -1602,7 +1613,6 @@ function syncOtherNameAudit(sourceInput, className, safeBkg) {
   inputs.forEach(inp => {
     if (inp !== sourceInput) {
       inp.value = val;
-      updateCalcA(inp, safeBkg);
     }
   });
 }
