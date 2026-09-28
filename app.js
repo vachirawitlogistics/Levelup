@@ -173,7 +173,8 @@ async function loadPlanDataInitial() {
             const { data: chunk, error: bResError } = await supabaseClient.from('plan_data')
                 .select('*')
                 .order('booking_date', { ascending: false })
-                .order('id', { ascending: true }) 
+                .order('vehicle_plate', { ascending: true }) 
+                .order('container_no', { ascending: true }) 
                 .range(from, from + step - 1);
             
             if (bResError) throw bResError;
@@ -239,7 +240,8 @@ async function loadPlanData(silent = false) {
             const { data: chunk, error } = await supabaseClient.from('plan_data')
                 .select('*')
                 .order('booking_date', { ascending: false })
-                .order('id', { ascending: true }) 
+                .order('vehicle_plate', { ascending: true }) 
+                .order('container_no', { ascending: true }) 
                 .range(from, from + step - 1);
             if (error) throw error;
             fetchedData = fetchedData.concat(chunk);
@@ -565,6 +567,7 @@ async function saveData() {
             container_no: container, terminal_charge: parseInt(r.querySelector('.cExp6').value) || 0, repair: (r.querySelector('.cExp7').value || 0).toString(),
             cleaning: parseInt(r.querySelector('.cExp8').value) || 0, shore: parseInt(r.querySelector('.cExp9').value) || 0,
             other_exp_name_1: r.querySelector('.cExp10Name').value.trim(), other_exp_amt_1: parseInt(r.querySelector('.cExp10Val').value) || 0,
+            other_exp_name_2: r.querySelector('.cExp11Name') ? r.querySelector('.cExp11Name').value.trim() : '', other_exp_amt_2: parseInt(r.querySelector('.cExp11Val') ? r.querySelector('.cExp11Val').value : 0) || 0,
             invoice_no: "", history_edit: "", bill_to_name: billToVal, ชื่อออกใบเสร็จ: receiptVal
         });
     });

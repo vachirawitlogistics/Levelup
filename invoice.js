@@ -120,7 +120,8 @@ async function loadBillingData(isLogin = false, forceSync = false) {
         .select('*')
         .in('status', ['จบงานรอวางบิล', 'พร้อมวางบิล'])
         .order('created_at', { ascending: false })
-        .order('id', { ascending: true }) // แก้ไขการเรียงข้อมูลตาม ID
+        .order('vehicle_plate', { ascending: true }) 
+        .order('container_no', { ascending: true }) 
         .range(from, from + step - 1);
         
       if (error) throw error;
@@ -318,13 +319,13 @@ function renderAuditTab() {
                 <div class="fw-bold text-primary bg-white border px-3 py-1 shadow-sm rounded-pill small">รวมรายการนี้: <span class="row-tot-a ms-1">฿${total.toLocaleString(undefined, {minimumFractionDigits:2})}</span></div>
               </div>
               <div class="row g-2">
-                <div class="col-md-5">
+                <div class="col-lg-4">
                   <div class="bg-white border rounded-3 p-2 shadow-sm h-100">
                     <div class="d-flex justify-content-between mb-2">
                       <span class="text-success fw-bold small"><i class="bi bi-arrow-up-right-circle me-1"></i>รายได้</span>
                       <span class="text-success fw-bold small row-inc-a">฿${obj.incTot.toLocaleString(undefined, {minimumFractionDigits:2})}</span>
                     </div>
-                    <div class="row g-1">
+                    <div class="row g-2">
                       <div class="col-6"><label class="small text-muted mb-0" style="font-size: 0.7rem;">ราคาเที่ยว</label><input type="number" class="form-control form-control-sm text-end inp-inc-a in-p" data-name="ราคาเที่ยว" data-orig="${parseFloat(r[17])||0}" value="${parseFloat(r[17])||0}" oninput="updateCalcA(this, '${safeBkg}')"></div>
                       <div class="col-6"><label class="small text-muted mb-0" style="font-size: 0.7rem;">ต่อระยะ</label><input type="number" class="form-control form-control-sm text-end inp-inc-a in-ext1" data-name="ต่อระยะ" data-orig="${parseFloat(r[20])||0}" value="${parseFloat(r[20])||0}" oninput="updateCalcA(this, '${safeBkg}')"></div>
                       <div class="col-6"><label class="small text-muted mb-0" style="font-size: 0.7rem;">ค้างหาง</label><input type="number" class="form-control form-control-sm text-end inp-inc-a in-ext2" data-name="ค้างหาง" data-orig="${parseFloat(r[21])||0}" value="${parseFloat(r[21])||0}" oninput="updateCalcA(this, '${safeBkg}')"></div>
@@ -332,21 +333,26 @@ function renderAuditTab() {
                     </div>
                   </div>
                 </div>
-                <div class="col-md-7">
+                <div class="col-lg-8">
                   <div class="bg-white border rounded-3 p-2 shadow-sm h-100">
                     <div class="d-flex justify-content-between mb-2">
                       <span class="text-danger fw-bold small"><i class="bi bi-arrow-down-right-circle me-1"></i>สำรองจ่าย</span>
                       <span class="text-danger fw-bold small row-adv-a">฿${obj.advTot.toLocaleString(undefined, {minimumFractionDigits:2})}</span>
                     </div>
-                    <div class="row g-1">
-                      <div class="col-4 col-sm-3"><label class="small text-muted mb-0" style="font-size: 0.7rem;">รับตู้</label><input type="number" class="form-control form-control-sm text-end inp-adv-a in-adv1" data-name="รับตู้" data-orig="${parseFloat(r[18])||0}" value="${parseFloat(r[18])||0}" oninput="updateCalcA(this, '${safeBkg}')"></div>
-                      <div class="col-4 col-sm-3"><label class="small text-muted mb-0" style="font-size: 0.7rem;">คืนตู้</label><input type="number" class="form-control form-control-sm text-end inp-adv-a in-adv2" data-name="คืนตู้" data-orig="${parseFloat(r[19])||0}" value="${parseFloat(r[19])||0}" oninput="updateCalcA(this, '${safeBkg}')"></div>
-                      <div class="col-4 col-sm-3"><label class="small text-muted mb-0" style="font-size: 0.7rem;">ผ่านท่า</label><input type="number" class="form-control form-control-sm text-end inp-adv-a in-adv3" data-name="ผ่านท่า" data-orig="${parseFloat(r[24])||0}" value="${parseFloat(r[24])||0}" oninput="updateCalcA(this, '${safeBkg}')"></div>
-                      <div class="col-4 col-sm-3"><label class="small text-muted mb-0" style="font-size: 0.7rem;">ซ่อมตู้</label><input type="number" class="form-control form-control-sm text-end inp-adv-a in-adv4" data-name="ซ่อมตู้" data-orig="${parseFloat(r[25])||0}" value="${parseFloat(r[25])||0}" oninput="updateCalcA(this, '${safeBkg}')"></div>
-                      <div class="col-4 col-sm-3"><label class="small text-muted mb-0" style="font-size: 0.7rem;">ล้างตู้</label><input type="number" class="form-control form-control-sm text-end inp-adv-a in-adv5" data-name="ล้างตู้" data-orig="${parseFloat(r[26])||0}" value="${parseFloat(r[26])||0}" oninput="updateCalcA(this, '${safeBkg}')"></div>
-                      <div class="col-4 col-sm-3"><label class="small text-primary mb-0 fw-bold" style="font-size: 0.7rem;">ค่าชอ</label><input type="number" class="form-control form-control-sm text-end border-primary bg-primary bg-opacity-10 inp-adv-a in-adv6" data-name="ค่าชอ" data-orig="${parseFloat(r[27])||0}" value="${parseFloat(r[27])||0}" oninput="updateCalcA(this, '${safeBkg}')"></div>
-                      <div class="col-6 col-sm-3"><label class="small text-muted mb-0" style="font-size: 0.7rem;">ยอดอื่น 1</label><input type="text" class="form-control form-control-sm in-extn1" data-name="ชื่อยอดอื่น 1" data-orig="${r[28]||''}" value="${r[28]||''}" oninput="updateCalcA(this, '${safeBkg}')"></div>
-                      <div class="col-6 col-sm-3"><label class="small text-muted mb-0" style="font-size: 0.7rem;">ยอดเงิน 1</label><input type="number" class="form-control form-control-sm text-end inp-adv-a in-extv1" data-name="ยอดเงิน 1" data-orig="${parseFloat(r[29])||0}" value="${parseFloat(r[29])||0}" oninput="updateCalcA(this, '${safeBkg}')"></div>
+                    <div class="row g-2">
+                      <div class="col-4 col-lg-2"><label class="small text-muted mb-0" style="font-size: 0.7rem;">รับตู้</label><input type="number" class="form-control form-control-sm text-end inp-adv-a in-adv1" data-name="รับตู้" data-orig="${parseFloat(r[18])||0}" value="${parseFloat(r[18])||0}" oninput="updateCalcA(this, '${safeBkg}')"></div>
+                      <div class="col-4 col-lg-2"><label class="small text-muted mb-0" style="font-size: 0.7rem;">คืนตู้</label><input type="number" class="form-control form-control-sm text-end inp-adv-a in-adv2" data-name="คืนตู้" data-orig="${parseFloat(r[19])||0}" value="${parseFloat(r[19])||0}" oninput="updateCalcA(this, '${safeBkg}')"></div>
+                      <div class="col-4 col-lg-2"><label class="small text-muted mb-0" style="font-size: 0.7rem;">ผ่านท่า</label><input type="number" class="form-control form-control-sm text-end inp-adv-a in-adv3" data-name="ผ่านท่า" data-orig="${parseFloat(r[24])||0}" value="${parseFloat(r[24])||0}" oninput="updateCalcA(this, '${safeBkg}')"></div>
+                      <div class="col-4 col-lg-2"><label class="small text-muted mb-0" style="font-size: 0.7rem;">ซ่อมตู้</label><input type="number" class="form-control form-control-sm text-end inp-adv-a in-adv4" data-name="ซ่อมตู้" data-orig="${parseFloat(r[25])||0}" value="${parseFloat(r[25])||0}" oninput="updateCalcA(this, '${safeBkg}')"></div>
+                      <div class="col-4 col-lg-2"><label class="small text-muted mb-0" style="font-size: 0.7rem;">ล้างตู้</label><input type="number" class="form-control form-control-sm text-end inp-adv-a in-adv5" data-name="ล้างตู้" data-orig="${parseFloat(r[26])||0}" value="${parseFloat(r[26])||0}" oninput="updateCalcA(this, '${safeBkg}')"></div>
+                      <div class="col-4 col-lg-2"><label class="small text-primary mb-0 fw-bold" style="font-size: 0.7rem;">ค่าชอ</label><input type="number" class="form-control form-control-sm text-end border-primary bg-primary bg-opacity-10 inp-adv-a in-adv6" data-name="ค่าชอ" data-orig="${parseFloat(r[27])||0}" value="${parseFloat(r[27])||0}" oninput="updateCalcA(this, '${safeBkg}')"></div>
+                      
+                      <div class="col-12 m-0"><hr class="m-0 opacity-25"></div>
+                      
+                      <div class="col-8 col-lg-4 mt-1"><label class="small text-muted mb-0" style="font-size: 0.7rem;">ยอดอื่น 1 (ชื่อ)</label><input type="text" class="form-control form-control-sm in-extn1" data-name="ชื่อยอดอื่น 1" data-orig="${r[28]||''}" value="${r[28]||''}" oninput="updateCalcA(this, '${safeBkg}'); syncOtherNameAudit(this, 'in-extn1', '${safeBkg}')"></div>
+                      <div class="col-4 col-lg-2 mt-1"><label class="small text-muted mb-0" style="font-size: 0.7rem;">ยอดเงิน 1</label><input type="number" class="form-control form-control-sm text-end inp-adv-a in-extv1" data-name="ยอดเงิน 1" data-orig="${parseFloat(r[29])||0}" value="${parseFloat(r[29])||0}" oninput="updateCalcA(this, '${safeBkg}')"></div>
+                      <div class="col-8 col-lg-4 mt-1"><label class="small text-muted mb-0" style="font-size: 0.7rem;">ยอดอื่น 2 (ชื่อ)</label><input type="text" class="form-control form-control-sm in-extn2" data-name="ชื่อยอดอื่น 2" data-orig="${r[30]||''}" value="${r[30]||''}" oninput="updateCalcA(this, '${safeBkg}'); syncOtherNameAudit(this, 'in-extn2', '${safeBkg}')"></div>
+                      <div class="col-4 col-lg-2 mt-1"><label class="small text-muted mb-0" style="font-size: 0.7rem;">ยอดเงิน 2</label><input type="number" class="form-control form-control-sm text-end inp-adv-a in-extv2" data-name="ยอดเงิน 2" data-orig="${parseFloat(r[31])||0}" value="${parseFloat(r[31])||0}" oninput="updateCalcA(this, '${safeBkg}')"></div>
                     </div>
                   </div>
                 </div>
@@ -477,7 +483,7 @@ async function saveAuditBulk() {
       other_exp_name_1: c.querySelector('.in-extn1').value.trim(), 
       other_exp_amt_1: parseFloat(c.querySelector('.in-extv1').value) || 0,
       other_exp_name_2: c.querySelector('.in-extn2') ? c.querySelector('.in-extn2').value.trim() : '', 
-      other_exp_amt_2: 0,
+      other_exp_amt_2: parseFloat(c.querySelector('.in-extv2') ? c.querySelector('.in-extv2').value : 0) || 0, 
       history_edit: editLogs.length > 0 ? `[บัญชีแก้: ${editLogs.join(', ')}]` : '', 
       status: 'พร้อมวางบิล'
     });
@@ -703,6 +709,10 @@ async function generateInvoiceBulk() {
           rowIdx: obj.rowIdx, 
           date: r[0], cs: r[1], type: r[2], mode: r[3], jobCustomer: r[4], load: r[5], booking: r[6], cy: r[7], cy_date: r[8], vgm: r[9], rtn: r[10], rtn_date: r[11], closing_time: r[12], agent: r[13], remark: r[14], plate: r[16] || '-',
           price: parseFloat(r[17]) || 0, adv1: parseFloat(r[18]) || 0, adv2: parseFloat(r[19]) || 0, ext1: parseFloat(r[20]) || 0, ext2: parseFloat(r[21]) || 0, ext3: parseFloat(r[22]) || 0, container: r[23] || '-', adv6: parseFloat(r[24]) || 0, adv4: parseFloat(r[25]) || 0, adv5: parseFloat(r[26]) || 0, adv9: parseFloat(r[27]) || 0,
+          other1Name: r[28] || '', 
+          other1: parseFloat(r[29]) || 0, 
+          other2Name: r[30] || '', 
+          other2: parseFloat(r[31]) || 0, 
           incTotal: obj.incTot, advTotal: obj.advTot, grandTotal: obj.grandTot, customer: billToName 
         });
         sumTotal += obj.grandTot;
@@ -714,8 +724,13 @@ async function generateInvoiceBulk() {
     return Swal.fire({ icon: 'error', title: 'ไม่สามารถรวมบิลได้', text: 'ต้องเลือกลูกค้า (Bill To) เจ้าเดียวกันเพื่อรวมบิล 1 ใบ' });
   }
 
-  // แก้ไข: บังคับให้ระบบเรียงข้อมูลตาม ID ของตู้ก่อนนำไปสร้างไฟล์ PDF
-  tempPayloadForPDF.sort((a, b) => a.rowIdx - b.rowIdx);
+  tempPayloadForPDF.sort((a, b) => {
+    let pA = (a.plate || '').toString().toLowerCase();
+    let pB = (b.plate || '').toString().toLowerCase();
+    if (pA < pB) return -1;
+    if (pA > pB) return 1;
+    return a.rowIdx - b.rowIdx; 
+  });
 
   let rawCustomerName = Array.from(custSet)[0];
   try {
@@ -798,7 +813,11 @@ async function confirmGeneratePDF() {
       const parseDate = (d) => d && d.trim() !== '' ? d : null;
       let insertPayload = tempPayloadForPDF.map(item => ({
         create_date: parseDate(item.date), cs: item.cs || null, container_type: item.type || null, mode: item.mode || null, customer: item.jobCustomer || null, load_place: item.load || null, booking: item.booking || null, cy_place: item.cy || null, cy_date: parseDate(item.cy_date), vgm: item.vgm || null, rtn_place: item.rtn || null, rtn_date: parseDate(item.rtn_date), closing_time: item.closing_time || null, agent: item.agent || null, comment: item.remark || null,
-        status: 'วางบิลแล้ว', vehicle_plate: item.plate || null, price: Math.round(item.price) || 0, receive: item.adv1 || 0, return: item.adv2 || 0, extender: Math.round(item.ext1) || 0, drop_tail: Math.round(item.ext2) || 0, lose_time: Math.round(item.ext3) || 0, container_no: item.container || null, repair: String(item.adv4 || 0), cleaning: Math.round(item.adv5) || 0, terminal_charge: Math.round(item.adv6) || 0, total_income: Math.round(item.incTotal) || 0, total_advance: String(item.advTotal || 0), grand_total: Math.round(item.grandTotal) || 0, bill_status: 'วางบิลแล้ว', invoice_no: res.invoiceNo, ref_key: `${item.booking}_${item.container}_${res.invoiceNo}`, user_action: currentUser, bill_date: invDate
+        status: 'วางบิลแล้ว', vehicle_plate: item.plate || null, price: Math.round(item.price) || 0, receive: item.adv1 || 0, return: item.adv2 || 0, extender: Math.round(item.ext1) || 0, drop_tail: Math.round(item.ext2) || 0, lose_time: Math.round(item.ext3) || 0, container_no: item.container || null, repair: String(item.adv4 || 0), cleaning: Math.round(item.adv5) || 0, terminal_charge: Math.round(item.adv6) || 0, total_income: Math.round(item.incTotal) || 0, total_advance: String(item.advTotal || 0), grand_total: Math.round(item.grandTotal) || 0, bill_status: 'วางบิลแล้ว', invoice_no: res.invoiceNo, ref_key: `${item.booking}_${item.container}_${res.invoiceNo}`, user_action: currentUser, bill_date: invDate,
+        other_exp_name_1: item.other1Name || null,
+        other_exp_amt_1: item.other1 || 0,
+        other_exp_name_2: item.other2Name || null,
+        other_exp_amt_2: item.other2 || 0
       }));
 
       const { error: invError } = await supabaseClient.from('invoice_data').insert(insertPayload);
@@ -851,7 +870,8 @@ async function loadHistory(forceSync = false) {
       const { data: chunk, error } = await supabaseClient.from('invoice_data')
         .select('*')
         .order('invoice_no', { ascending: false })
-        .order('id', { ascending: true })
+        .order('vehicle_plate', { ascending: true }) 
+        .order('container_no', { ascending: true }) 
         .range(hFrom, hFrom + step - 1);
         
       if (error) throw error;
@@ -1027,11 +1047,11 @@ function renderHistoryTable() {
 
 async function viewInvoiceDetails(invNo) {
   try {
-    // แก้ไข: เพิ่ม order by ID
     const { data, error } = await supabaseClient.from('invoice_data')
       .select('*')
       .eq('invoice_no', invNo)
-      .order('id', { ascending: true });
+      .order('vehicle_plate', { ascending: true }) 
+      .order('container_no', { ascending: true }); 
       
     if (error) throw error;
     
@@ -1073,11 +1093,11 @@ async function openEditInvoiceModal(invoiceNo) {
   try {
     if (typeof showGlobalLoader === 'function') showGlobalLoader('กำลังโหลดข้อมูลบิล...');
     
-    // แก้ไข: เพิ่ม order by ID
     const { data, error } = await supabaseClient.from('invoice_data')
       .select('*')
       .eq('invoice_no', invoiceNo)
-      .order('id', { ascending: true });
+      .order('vehicle_plate', { ascending: true }) 
+      .order('container_no', { ascending: true }); 
       
     if (error) throw error;
     if (!data || data.length === 0) return Swal.fire('ไม่พบข้อมูล', 'ไม่มีข้อมูลบิลนี้ในระบบ', 'error');
@@ -1104,26 +1124,31 @@ async function openEditInvoiceModal(invoiceNo) {
               <div class="col-md-4"><label class="small text-muted fw-bold mb-0">ทะเบียนรถ</label><input type="text" class="form-control form-control-sm bg-white e-plate border-secondary" value="${itm.vehicle_plate || ''}"></div>
             </div>
             <div class="row g-2">
-              <div class="col-md-6 border-end border-light">
+              <div class="col-lg-4 border-end border-light">
                 <p class="text-success fw-bold small mb-1"><i class="bi bi-arrow-up-right-circle me-1"></i>รายได้ (Income)</p>
-                <div class="row g-1">
+                <div class="row g-2">
                   <div class="col-6"><label class="small text-muted mb-0" style="font-size: 0.7rem;">ราคาเที่ยว</label><input type="number" class="form-control form-control-sm bg-white e-price" value="${itm.price || 0}"></div>
                   <div class="col-6"><label class="small text-muted mb-0" style="font-size: 0.7rem;">ต่อระยะ</label><input type="number" class="form-control form-control-sm bg-white e-ext1" value="${itm.extender || 0}"></div>
                   <div class="col-6"><label class="small text-muted mb-0" style="font-size: 0.7rem;">ค้างหาง</label><input type="number" class="form-control form-control-sm bg-white e-ext2" value="${itm.drop_tail || 0}"></div>
                   <div class="col-6"><label class="small text-muted mb-0" style="font-size: 0.7rem;">เสียเวลา</label><input type="number" class="form-control form-control-sm bg-white e-ext3" value="${itm.lose_time || 0}"></div>
                 </div>
               </div>
-              <div class="col-md-6">
+              <div class="col-lg-8">
                 <p class="text-danger fw-bold small mb-1"><i class="bi bi-arrow-down-right-circle me-1"></i>สำรองจ่าย (Advance)</p>
-                <div class="row g-1">
-                  <div class="col-4"><label class="small text-muted mb-0" style="font-size: 0.7rem;">รับตู้</label><input type="number" class="form-control form-control-sm bg-white e-adv1" value="${itm.receive || 0}"></div>
-                  <div class="col-4"><label class="small text-muted mb-0" style="font-size: 0.7rem;">คืนตู้</label><input type="number" class="form-control form-control-sm bg-white e-adv2" value="${itm.return || 0}"></div>
-                  <div class="col-4"><label class="small text-muted mb-0" style="font-size: 0.7rem;">ผ่านท่า</label><input type="number" class="form-control form-control-sm bg-white e-adv3" value="${itm.terminal_charge || 0}"></div>
-                  <div class="col-4"><label class="small text-muted mb-0" style="font-size: 0.7rem;">ซ่อมตู้</label><input type="number" class="form-control form-control-sm bg-white e-adv4" value="${itm.repair || 0}"></div>
-                  <div class="col-4"><label class="small text-muted mb-0" style="font-size: 0.7rem;">ล้างตู้</label><input type="number" class="form-control form-control-sm bg-white e-adv5" value="${itm.cleaning || 0}"></div>
+                <div class="row g-2">
+                  <div class="col-4 col-lg-2"><label class="small text-muted mb-0" style="font-size: 0.7rem;">รับตู้</label><input type="number" class="form-control form-control-sm bg-white e-adv1" value="${itm.receive || 0}"></div>
+                  <div class="col-4 col-lg-2"><label class="small text-muted mb-0" style="font-size: 0.7rem;">คืนตู้</label><input type="number" class="form-control form-control-sm bg-white e-adv2" value="${itm.return || 0}"></div>
+                  <div class="col-4 col-lg-2"><label class="small text-muted mb-0" style="font-size: 0.7rem;">ผ่านท่า</label><input type="number" class="form-control form-control-sm bg-white e-adv3" value="${itm.terminal_charge || 0}"></div>
+                  <div class="col-4 col-lg-2"><label class="small text-muted mb-0" style="font-size: 0.7rem;">ซ่อมตู้</label><input type="number" class="form-control form-control-sm bg-white e-adv4" value="${itm.repair || 0}"></div>
+                  <div class="col-4 col-lg-2"><label class="small text-muted mb-0" style="font-size: 0.7rem;">ล้างตู้</label><input type="number" class="form-control form-control-sm bg-white e-adv5" value="${itm.cleaning || 0}"></div>
+                  <div class="col-4 col-lg-2"><label class="small text-primary fw-bold mb-0" style="font-size: 0.7rem;">ค่าชอ</label><input type="number" class="form-control form-control-sm border-primary bg-primary bg-opacity-10 e-adv6" value="${itm.terminal_charge || 0}"></div>
+                  
                   <div class="col-12 m-0"><hr class="m-0 opacity-25"></div>
-                  <div class="col-8 mt-1"><label class="small text-muted mb-0" style="font-size: 0.7rem;">ยอดอื่น 1 (ชื่อ)</label><input type="text" class="form-control form-control-sm bg-white e-extn1" value="${itm.other_exp_name_1 || ''}"></div>
-                  <div class="col-4 mt-1"><label class="small text-muted mb-0" style="font-size: 0.7rem;">ยอด</label><input type="number" class="form-control form-control-sm bg-white e-extv1" value="${itm.other_exp_amt_1 || 0}"></div>
+                  
+                  <div class="col-8 col-lg-4 mt-1"><label class="small text-muted mb-0" style="font-size: 0.7rem;">ยอดอื่น 1 (ชื่อ)</label><input type="text" class="form-control form-control-sm bg-white e-extn1" value="${itm.other_exp_name_1 || ''}" oninput="syncOtherNameEdit(this, 'e-extn1')"></div>
+                  <div class="col-4 col-lg-2 mt-1"><label class="small text-muted mb-0" style="font-size: 0.7rem;">ยอดเงิน 1</label><input type="number" class="form-control form-control-sm bg-white e-extv1" value="${itm.other_exp_amt_1 || 0}"></div>
+                  <div class="col-8 col-lg-4 mt-1"><label class="small text-muted mb-0" style="font-size: 0.7rem;">ยอดอื่น 2 (ชื่อ)</label><input type="text" class="form-control form-control-sm bg-white e-extn2" value="${itm.other_exp_name_2 || ''}" oninput="syncOtherNameEdit(this, 'e-extn2')"></div>
+                  <div class="col-4 col-lg-2 mt-1"><label class="small text-muted mb-0" style="font-size: 0.7rem;">ยอดเงิน 2</label><input type="number" class="form-control form-control-sm bg-white e-extv2" value="${itm.other_exp_amt_2 || 0}"></div>
                 </div>
               </div>
             </div>
@@ -1161,11 +1186,11 @@ async function confirmEditInvoice() {
       if (typeof showGlobalLoader === 'function') showGlobalLoader('กำลังบันทึกและสร้างเอกสารใหม่...');
       
       try {
-        // แก้ไข: เพิ่ม order by ID
         const { data: oldData, error: fetchErr } = await supabaseClient.from('invoice_data')
           .select('*')
           .eq('invoice_no', invNo)
-          .order('id', { ascending: true });
+          .order('vehicle_plate', { ascending: true }) 
+          .order('container_no', { ascending: true }); 
           
         if (fetchErr) throw fetchErr;
 
@@ -1203,19 +1228,27 @@ async function confirmEditInvoice() {
               a2 = parseFloat(card.querySelector('.e-adv2').value) || 0, 
               a3 = parseFloat(card.querySelector('.e-adv3').value) || 0, 
               a4 = parseFloat(card.querySelector('.e-adv4').value) || 0, 
-              a5 = parseFloat(card.querySelector('.e-adv5').value) || 0;
+              a5 = parseFloat(card.querySelector('.e-adv5').value) || 0,
+              a6 = parseFloat(card.querySelector('.e-adv6').value) || 0;
               
           let n1 = card.querySelector('.e-extn1').value.trim(), 
               v1 = parseFloat(card.querySelector('.e-extv1').value) || 0;
+              
+          let n2 = card.querySelector('.e-extn2').value.trim(), 
+              v2 = parseFloat(card.querySelector('.e-extv2').value) || 0;
 
           let incTot = p + e1 + e2 + e3; 
-          let advTot = a1 + a2 + a3 + a4 + a5 + v1;
+          let advTot = a1 + a2 + a3 + a4 + a5 + a6 + v1 + v2;
 
           payload.push({ 
             rowIdx: oldItem.id, jobCustomer: oldItem.customer, customer: customer, booking: booking, 
             date: cDate || null, plate: cPlate, cy: oldItem.cy_place || '-', load: oldItem.load_place || '-', 
             rtn: oldItem.rtn_place || '-', type: oldItem.container_type || '-', container: cContainer, remark: oldItem.comment || '', 
-            price: p, adv1: a1, adv2: a2, adv6: a3, ext1: e1, ext2: e2, ext3: e3, adv4: a4, adv5: a5, adv9: 0, 
+            price: p, adv1: a1, adv2: a2, adv6: a3, ext1: e1, ext2: e2, ext3: e3, adv4: a4, adv5: a5, adv9: a6, 
+            other1Name: n1,
+            other1: v1, 
+            other2Name: n2,
+            other2: v2,
             incTotal: incTot, advTotal: advTot, grandTotal: incTot + advTot 
           });
 
@@ -1240,11 +1273,12 @@ async function confirmEditInvoice() {
           newItemForDB.repair = String(a4);
           newItemForDB.cleaning = a5;
           
-          delete newItemForDB.shore;
-          delete newItemForDB.other_exp_name_1;
-          delete newItemForDB.other_exp_amt_1;
-          delete newItemForDB.other_exp_name_2;
-          delete newItemForDB.other_exp_amt_2;
+          newItemForDB.other_exp_name_1 = n1;
+          newItemForDB.other_exp_amt_1 = v1;
+          newItemForDB.other_exp_name_2 = n2;
+          newItemForDB.other_exp_amt_2 = v2;
+          
+          delete newItemForDB.shore; 
 
           newItemForDB.total_income = incTot;
           newItemForDB.total_advance = String(advTot);
@@ -1262,12 +1296,22 @@ async function confirmEditInvoice() {
               booking_date: (cDate && cDate.trim() !== '') ? cDate : null,
               price: p, extender: e1, tail_drop: e2, lose_time: e3,
               receive: String(a1), retrun: String(a2), terminal_charge: a3,
-              repair: String(a4), cleaning: a5
+              repair: String(a4), cleaning: a5,
+              other_exp_name_1: n1, other_exp_amt_1: v1,
+              other_exp_name_2: n2, other_exp_amt_2: v2
             })
             .eq('invoice_no', invNo)
             .eq('booking', booking)
             .eq('container_no', origContainer)
           );
+        });
+
+        payload.sort((a, b) => {
+          let pA = (a.plate || '').toString().toLowerCase();
+          let pB = (b.plate || '').toString().toLowerCase();
+          if (pA < pB) return -1;
+          if (pA > pB) return 1;
+          return a.rowIdx - b.rowIdx; 
         });
 
         await Promise.all(planUpdates);
@@ -1440,11 +1484,11 @@ async function confirmGenerateReceipt() {
   try {
     if (typeof showGlobalLoader === 'function') showGlobalLoader('กำลังสร้างเอกสารใหม่...');
     
-    // แก้ไข: เพิ่ม order by ID
     const { data: bData } = await supabaseClient.from('invoice_data')
       .select('*')
       .eq('invoice_no', currentReceiptInvNo)
-      .order('id', { ascending: true });
+      .order('vehicle_plate', { ascending: true }) 
+      .order('container_no', { ascending: true }); 
       
     if(!bData || bData.length === 0) throw new Error("ไม่พบข้อมูลบิลนี้ในระบบ");
 
@@ -1546,4 +1590,29 @@ async function confirmGenerateReceipt() {
     document.getElementById('btnConfirmReceipt').disabled = false; 
     Swal.fire('เกิดข้อผิดพลาด', err.message, 'error'); 
   }
+}
+
+// ------------------------------------------------------------------
+// ฟังก์ชัน Auto-Sync ชื่อช่องยอดอื่น ๆ ระหว่างกล่องตู้คอนเทนเนอร์
+// ------------------------------------------------------------------
+
+function syncOtherNameAudit(sourceInput, className, safeBkg) {
+  let val = sourceInput.value;
+  let inputs = document.querySelectorAll('.detail-a-' + safeBkg + ' .' + className);
+  inputs.forEach(inp => {
+    if (inp !== sourceInput) {
+      inp.value = val;
+      updateCalcA(inp, safeBkg);
+    }
+  });
+}
+
+function syncOtherNameEdit(sourceInput, className) {
+  let val = sourceInput.value;
+  let inputs = document.querySelectorAll('#editItemsContainer .' + className);
+  inputs.forEach(inp => {
+    if (inp !== sourceInput) {
+      inp.value = val;
+    }
+  });
 }
