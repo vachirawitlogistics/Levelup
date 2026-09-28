@@ -163,7 +163,7 @@ function startBackgroundSync() {
 }
 
 async function loadPlanDataInitial() {
-    showGlobalLoader('กำลังดึงฐานข้อมูล...รอแปบนึง...');
+    showGlobalLoader('กำลังดึงฐานข้อมูล รอแปบนึง...');
     try {
         let allPlanData = [];
         let from = 0;
@@ -172,9 +172,7 @@ async function loadPlanDataInitial() {
         while (true) {
             const { data: chunk, error: bResError } = await supabaseClient.from('plan_data')
                 .select('*')
-                .order('booking_date', { ascending: false })
-                .order('vehicle_plate', { ascending: true }) 
-                .order('container_no', { ascending: true }) 
+                .order('created_at', { ascending: false }) // เรียงเวลาใหม่สุดขึ้นก่อน
                 .range(from, from + step - 1);
             
             if (bResError) throw bResError;
@@ -239,9 +237,7 @@ async function loadPlanData(silent = false) {
         while (true) {
             const { data: chunk, error } = await supabaseClient.from('plan_data')
                 .select('*')
-                .order('booking_date', { ascending: false })
-                .order('vehicle_plate', { ascending: true }) 
-                .order('container_no', { ascending: true }) 
+                .order('created_at', { ascending: false }) // เรียงเวลาใหม่สุดขึ้นก่อน
                 .range(from, from + step - 1);
             if (error) throw error;
             fetchedData = fetchedData.concat(chunk);
@@ -549,13 +545,18 @@ async function saveData() {
     let billToVal = document.getElementById('billTo').value.trim() || mappedName;
     let receiptVal = document.getElementById('receiptName').value.trim() || mappedName;
 
-    rows.forEach(r => {
+    // เปลี่ยนจาก ลบ เป็น บวกเวลา ให้ตู้แรกสุดถูกสร้างด้วยเวลาน้อยสุด ตู้ถัดมาเวลาเดินไปข้างหน้า
+    let baseTime = new Date().getTime();
+
+    rows.forEach((r, idx) => {
         let isChecked = r.querySelector('.cTruckStatus').checked;
         let plate = r.querySelector('.cTruckPlate').value.trim();
         let container = r.querySelector('.cContainerNo').value.trim();
         if(isChecked && (!plate || !container)) { hasError = true; }
 
         payloadData.push({
+            // บวกเวลาเพื่อเรียงลำดับ แล้วตัดเอาแค่เวลาตาม type timetz
+            created_at: new Date(baseTime + idx).toISOString().split('T')[1],
             booking_date: document.getElementById('date').value || null,
             cs: currentUser, container_type: r.querySelector('.cType').value, mode: document.getElementById('mode').value,
             customer: customer, load_place: loadPlace, booking: bkg, cy_place: r.querySelector('.cyPlace').value, cy_date: r.querySelector('.cyDate').value || null,

@@ -119,9 +119,9 @@ async function loadBillingData(isLogin = false, forceSync = false) {
       const { data: chunk, error } = await supabaseClient.from('plan_data')
         .select('*')
         .in('status', ['จบงานรอวางบิล', 'พร้อมวางบิล'])
-        .order('created_at', { ascending: false })
-        .order('vehicle_plate', { ascending: true }) 
-        .order('container_no', { ascending: true }) 
+        .order('booking', { ascending: true }) 
+        .order('booking_date', { ascending: true }) 
+        .order('created_at', { ascending: true }) 
         .range(from, from + step - 1);
         
       if (error) throw error;
@@ -172,11 +172,10 @@ async function loadBillingData(isLogin = false, forceSync = false) {
       let adv3 = parseFloat(r[24]) || 0, adv4 = parseFloat(r[25]) || 0, adv5 = parseFloat(r[26]) || 0, adv6 = parseFloat(r[27]) || 0;
       let ext_v1 = parseFloat(r[29]) || 0, ext_v2 = parseFloat(r[31]) || 0;
       
-      // ย้าย Other 1 (ext_v1) มารวมกับ Income (incTot)
       let incTot = price + ext1 + ext2 + ext3 + ext_v1;
       let advTot = adv1 + adv2 + adv3 + adv4 + adv5 + adv6 + ext_v2;
       
-      let rowObj = { rowData: r, rowIdx: r[36], incTot: incTot, advTot: advTot, grandTot: incTot + advTot };
+      let rowObj = { rowData: r, rowIdx: r[36], created_at: row.created_at, incTot: incTot, advTot: advTot, grandTot: incTot + advTot };
 
       if (row.status === 'จบงานรอวางบิล') auditData.push(rowObj);
       else if (row.status === 'พร้อมวางบิล') readyData.push(rowObj);
@@ -322,7 +321,6 @@ function renderAuditTab() {
                 <div class="fw-bold text-primary bg-white border px-3 py-1 shadow-sm rounded-pill small">รวมรายการนี้: <span class="row-tot-a ms-1">฿${total.toLocaleString(undefined, {minimumFractionDigits:2})}</span></div>
               </div>
               <div class="row g-2">
-                <!-- ฝั่งรายได้ (Income) -->
                 <div class="col-lg-5">
                   <div class="bg-white border rounded-3 p-2 shadow-sm h-100">
                     <div class="d-flex justify-content-between mb-2">
@@ -342,7 +340,6 @@ function renderAuditTab() {
                     </div>
                   </div>
                 </div>
-                <!-- ฝั่งสำรองจ่าย (Advance) -->
                 <div class="col-lg-7">
                   <div class="bg-white border rounded-3 p-2 shadow-sm h-100">
                     <div class="d-flex justify-content-between mb-2">
@@ -350,12 +347,12 @@ function renderAuditTab() {
                       <span class="text-danger fw-bold small row-adv-a">฿${obj.advTot.toLocaleString(undefined, {minimumFractionDigits:2})}</span>
                     </div>
                     <div class="row g-2">
-                      <div class="col-4"><label class="small text-muted mb-0" style="font-size: 0.7rem;">รับตู้</label><input type="number" class="form-control form-control-sm text-end inp-adv-a in-adv1" data-name="รับตู้" data-orig="${parseFloat(r[18])||0}" value="${parseFloat(r[18])||0}" oninput="updateCalcA(this, '${safeBkg}')"></div>
-                      <div class="col-4"><label class="small text-muted mb-0" style="font-size: 0.7rem;">คืนตู้</label><input type="number" class="form-control form-control-sm text-end inp-adv-a in-adv2" data-name="คืนตู้" data-orig="${parseFloat(r[19])||0}" value="${parseFloat(r[19])||0}" oninput="updateCalcA(this, '${safeBkg}')"></div>
-                      <div class="col-4"><label class="small text-muted mb-0" style="font-size: 0.7rem;">ผ่านท่า</label><input type="number" class="form-control form-control-sm text-end inp-adv-a in-adv3" data-name="ผ่านท่า" data-orig="${parseFloat(r[24])||0}" value="${parseFloat(r[24])||0}" oninput="updateCalcA(this, '${safeBkg}')"></div>
-                      <div class="col-4"><label class="small text-muted mb-0" style="font-size: 0.7rem;">ซ่อมตู้</label><input type="number" class="form-control form-control-sm text-end inp-adv-a in-adv4" data-name="ซ่อมตู้" data-orig="${parseFloat(r[25])||0}" value="${parseFloat(r[25])||0}" oninput="updateCalcA(this, '${safeBkg}')"></div>
-                      <div class="col-4"><label class="small text-muted mb-0" style="font-size: 0.7rem;">ล้างตู้</label><input type="number" class="form-control form-control-sm text-end inp-adv-a in-adv5" data-name="ล้างตู้" data-orig="${parseFloat(r[26])||0}" value="${parseFloat(r[26])||0}" oninput="updateCalcA(this, '${safeBkg}')"></div>
-                      <div class="col-4"><label class="small text-primary mb-0 fw-bold" style="font-size: 0.7rem;">ค่าชอ</label><input type="number" class="form-control form-control-sm text-end border-primary bg-primary bg-opacity-10 inp-adv-a in-adv6" data-name="ค่าชอ" data-orig="${parseFloat(r[27])||0}" value="${parseFloat(r[27])||0}" oninput="updateCalcA(this, '${safeBkg}')"></div>
+                      <div class="col-4 col-lg-4"><label class="small text-muted mb-0" style="font-size: 0.7rem;">รับตู้</label><input type="number" class="form-control form-control-sm text-end inp-adv-a in-adv1" data-name="รับตู้" data-orig="${parseFloat(r[18])||0}" value="${parseFloat(r[18])||0}" oninput="updateCalcA(this, '${safeBkg}')"></div>
+                      <div class="col-4 col-lg-4"><label class="small text-muted mb-0" style="font-size: 0.7rem;">คืนตู้</label><input type="number" class="form-control form-control-sm text-end inp-adv-a in-adv2" data-name="คืนตู้" data-orig="${parseFloat(r[19])||0}" value="${parseFloat(r[19])||0}" oninput="updateCalcA(this, '${safeBkg}')"></div>
+                      <div class="col-4 col-lg-4"><label class="small text-muted mb-0" style="font-size: 0.7rem;">ผ่านท่า</label><input type="number" class="form-control form-control-sm text-end inp-adv-a in-adv3" data-name="ผ่านท่า" data-orig="${parseFloat(r[24])||0}" value="${parseFloat(r[24])||0}" oninput="updateCalcA(this, '${safeBkg}')"></div>
+                      <div class="col-4 col-lg-4"><label class="small text-muted mb-0" style="font-size: 0.7rem;">ซ่อมตู้</label><input type="number" class="form-control form-control-sm text-end inp-adv-a in-adv4" data-name="ซ่อมตู้" data-orig="${parseFloat(r[25])||0}" value="${parseFloat(r[25])||0}" oninput="updateCalcA(this, '${safeBkg}')"></div>
+                      <div class="col-4 col-lg-4"><label class="small text-muted mb-0" style="font-size: 0.7rem;">ล้างตู้</label><input type="number" class="form-control form-control-sm text-end inp-adv-a in-adv5" data-name="ล้างตู้" data-orig="${parseFloat(r[26])||0}" value="${parseFloat(r[26])||0}" oninput="updateCalcA(this, '${safeBkg}')"></div>
+                      <div class="col-4 col-lg-4"><label class="small text-primary mb-0 fw-bold" style="font-size: 0.7rem;">ค่าชอ</label><input type="number" class="form-control form-control-sm text-end border-primary bg-primary bg-opacity-10 inp-adv-a in-adv6" data-name="ค่าชอ" data-orig="${parseFloat(r[27])||0}" value="${parseFloat(r[27])||0}" oninput="updateCalcA(this, '${safeBkg}')"></div>
                       
                       <div class="col-12 m-0"><hr class="m-0 opacity-25"></div>
                       
@@ -715,6 +712,7 @@ async function generateInvoiceBulk() {
         
         tempPayloadForPDF.push({
           rowIdx: obj.rowIdx, 
+          created_at: obj.created_at, 
           date: r[0], cs: r[1], type: r[2], mode: r[3], jobCustomer: r[4], load: r[5], booking: r[6], cy: r[7], cy_date: r[8], vgm: r[9], rtn: r[10], rtn_date: r[11], closing_time: r[12], agent: r[13], remark: r[14], plate: r[16] || '-',
           price: parseFloat(r[17]) || 0, adv1: parseFloat(r[18]) || 0, adv2: parseFloat(r[19]) || 0, ext1: parseFloat(r[20]) || 0, ext2: parseFloat(r[21]) || 0, ext3: parseFloat(r[22]) || 0, container: r[23] || '-', adv6: parseFloat(r[24]) || 0, adv4: parseFloat(r[25]) || 0, adv5: parseFloat(r[26]) || 0, adv9: parseFloat(r[27]) || 0,
           other1Name: r[28] || '', 
@@ -732,12 +730,24 @@ async function generateInvoiceBulk() {
     return Swal.fire({ icon: 'error', title: 'ไม่สามารถรวมบิลได้', text: 'ต้องเลือกลูกค้า (Bill To) เจ้าเดียวกันเพื่อรวมบิล 1 ใบ' });
   }
 
+  // เรียงใน PDF ยึดตามลำดับการสร้าง
   tempPayloadForPDF.sort((a, b) => {
-    let pA = (a.plate || '').toString().toLowerCase();
-    let pB = (b.plate || '').toString().toLowerCase();
-    if (pA < pB) return -1;
-    if (pA > pB) return 1;
-    return a.rowIdx - b.rowIdx; 
+    let bkgA = (a.booking || '').toString().toLowerCase();
+    let bkgB = (b.booking || '').toString().toLowerCase();
+    if (bkgA < bkgB) return -1;
+    if (bkgA > bkgB) return 1;
+
+    let dA = new Date(a.date || 0).getTime();
+    let dB = new Date(b.date || 0).getTime();
+    if (dA < dB) return -1;
+    if (dA > dB) return 1;
+
+    let cA = new Date('1970-01-01T' + (a.created_at || '00:00:00') + 'Z').getTime();
+    let cB = new Date('1970-01-01T' + (b.created_at || '00:00:00') + 'Z').getTime();
+    if (cA < cB) return -1;
+    if (cA > cB) return 1;
+
+    return 0;
   });
 
   let rawCustomerName = Array.from(custSet)[0];
@@ -802,7 +812,7 @@ async function confirmGeneratePDF() {
       finalInvNo = prefix + String(nextSeq).padStart(3, '0');
     }
 
-    Swal.fire({ title: 'กำลังสร้างไฟล์ PDF...', text: 'รอสักครู่.....ใจเย็นๆเหมือนน้ำต้มไก่', allowOutsideClick: false, didOpen: () => { Swal.showLoading(); } });
+    Swal.fire({ title: 'กำลังสร้างไฟล์ PDF...', text: 'รอสักครู่ ใจเย็นๆเหมือนน้ำต้มไก่...', allowOutsideClick: false, didOpen: () => { Swal.showLoading(); } });
     
     const res = await callInvAPI('generateInvoicePDF', { 
       payload: tempPayloadForPDF, 
@@ -828,6 +838,7 @@ async function confirmGeneratePDF() {
         other_exp_amt_2: item.other2 || 0
       }));
 
+      // ลบส่วนที่มีปัญหา (ไม่ต้องยัด created_at ไปที่ invoice_data อีกต่อไป)
       const { error: invError } = await supabaseClient.from('invoice_data').insert(insertPayload);
       if (invError) throw new Error("บันทึกประวัติ Invoice ลงฐานข้อมูลไม่สำเร็จ: " + invError.message);
 
@@ -878,8 +889,7 @@ async function loadHistory(forceSync = false) {
       const { data: chunk, error } = await supabaseClient.from('invoice_data')
         .select('*')
         .order('invoice_no', { ascending: false })
-        .order('vehicle_plate', { ascending: true }) 
-        .order('container_no', { ascending: true }) 
+        .order('id', { ascending: true }) 
         .range(hFrom, hFrom + step - 1);
         
       if (error) throw error;
@@ -1058,8 +1068,7 @@ async function viewInvoiceDetails(invNo) {
     const { data, error } = await supabaseClient.from('invoice_data')
       .select('*')
       .eq('invoice_no', invNo)
-      .order('vehicle_plate', { ascending: true }) 
-      .order('container_no', { ascending: true }); 
+      .order('id', { ascending: true }); 
       
     if (error) throw error;
     
@@ -1104,8 +1113,7 @@ async function openEditInvoiceModal(invoiceNo) {
     const { data, error } = await supabaseClient.from('invoice_data')
       .select('*')
       .eq('invoice_no', invoiceNo)
-      .order('vehicle_plate', { ascending: true }) 
-      .order('container_no', { ascending: true }); 
+      .order('id', { ascending: true }); 
       
     if (error) throw error;
     if (!data || data.length === 0) return Swal.fire('ไม่พบข้อมูล', 'ไม่มีข้อมูลบิลนี้ในระบบ', 'error');
@@ -1154,7 +1162,7 @@ async function openEditInvoiceModal(invoiceNo) {
                   <div class="col-4 col-lg-4"><label class="small text-muted mb-0" style="font-size: 0.7rem;">ผ่านท่า</label><input type="number" class="form-control form-control-sm bg-white e-adv3" value="${itm.terminal_charge || 0}"></div>
                   <div class="col-4 col-lg-4"><label class="small text-muted mb-0" style="font-size: 0.7rem;">ซ่อมตู้</label><input type="number" class="form-control form-control-sm bg-white e-adv4" value="${itm.repair || 0}"></div>
                   <div class="col-4 col-lg-4"><label class="small text-muted mb-0" style="font-size: 0.7rem;">ล้างตู้</label><input type="number" class="form-control form-control-sm bg-white e-adv5" value="${itm.cleaning || 0}"></div>
-                  <div class="col-4 col-lg-4"><label class="small text-primary fw-bold mb-0" style="font-size: 0.7rem;">ค่าชอ</label><input type="number" class="form-control form-control-sm border-primary bg-primary bg-opacity-10 e-adv6" value="${itm.terminal_charge || 0}"></div>
+                  <div class="col-4 col-lg-4"><label class="small text-primary fw-bold mb-0" style="font-size: 0.7rem;">ค่าชอ</label><input type="number" class="form-control form-control-sm text-end border-primary bg-primary bg-opacity-10 e-adv6" value="${itm.terminal_charge || 0}"></div>
                   
                   <div class="col-12 m-0"><hr class="m-0 opacity-25"></div>
                   
@@ -1200,8 +1208,7 @@ async function confirmEditInvoice() {
         const { data: oldData, error: fetchErr } = await supabaseClient.from('invoice_data')
           .select('*')
           .eq('invoice_no', invNo)
-          .order('vehicle_plate', { ascending: true }) 
-          .order('container_no', { ascending: true }); 
+          .order('id', { ascending: true }); // กลับมาเรียงตามลำดับตอนสร้าง
           
         if (fetchErr) throw fetchErr;
 
@@ -1217,7 +1224,7 @@ async function confirmEditInvoice() {
         let insertPayload = []; 
         let planUpdates = []; 
         let cards = document.querySelectorAll('.edit-item-card');
-        
+
         cards.forEach(card => {
           let booking = card.getAttribute('data-booking'); 
           let origContainer = card.getAttribute('data-container');
@@ -1252,7 +1259,8 @@ async function confirmEditInvoice() {
           let advTot = a1 + a2 + a3 + a4 + a5 + a6 + v2;
 
           payload.push({ 
-            rowIdx: oldItem.id, jobCustomer: oldItem.customer, customer: customer, booking: booking, 
+            rowIdx: oldItem.id, 
+            jobCustomer: oldItem.customer, customer: customer, booking: booking, 
             date: cDate || null, plate: cPlate, cy: oldItem.cy_place || '-', load: oldItem.load_place || '-', 
             rtn: oldItem.rtn_place || '-', type: oldItem.container_type || '-', container: cContainer, remark: oldItem.comment || '', 
             price: p, adv1: a1, adv2: a2, adv6: a3, ext1: e1, ext2: e2, ext3: e3, adv4: a4, adv5: a5, adv9: a6, 
@@ -1317,13 +1325,8 @@ async function confirmEditInvoice() {
           );
         });
 
-        payload.sort((a, b) => {
-          let pA = (a.plate || '').toString().toLowerCase();
-          let pB = (b.plate || '').toString().toLowerCase();
-          if (pA < pB) return -1;
-          if (pA > pB) return 1;
-          return a.rowIdx - b.rowIdx; 
-        });
+        // ลบการเรียงตามทะเบียนรถออก เปลี่ยนเป็นเรียงตามลำดับตอนสร้าง
+        payload.sort((a, b) => a.rowIdx - b.rowIdx);
 
         await Promise.all(planUpdates);
         await callInvAPI('rollbackInvoice', { invoiceNo: invNo }, 1, false);
@@ -1498,8 +1501,7 @@ async function confirmGenerateReceipt() {
     const { data: bData } = await supabaseClient.from('invoice_data')
       .select('*')
       .eq('invoice_no', currentReceiptInvNo)
-      .order('vehicle_plate', { ascending: true }) 
-      .order('container_no', { ascending: true }); 
+      .order('id', { ascending: true }); // กลับมาเรียงตามลำดับตอนสร้าง
       
     if(!bData || bData.length === 0) throw new Error("ไม่พบข้อมูลบิลนี้ในระบบ");
 
