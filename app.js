@@ -237,7 +237,7 @@ async function loadPlanData(silent = false) {
         while (true) {
             const { data: chunk, error } = await supabaseClient.from('plan_data')
                 .select('*')
-                .order('created_at', { ascending: false }) // เรียงเวลาใหม่สุดขึ้นก่อน
+                .order('created_at', { ascending: false })
                 .range(from, from + step - 1);
             if (error) throw error;
             fetchedData = fetchedData.concat(chunk);
