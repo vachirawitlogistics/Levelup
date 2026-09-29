@@ -352,7 +352,7 @@ function renderAuditTab() {
                       <div class="col-4 col-lg-4"><label class="small text-muted mb-0" style="font-size: 0.7rem;">ผ่านท่า</label><input type="number" class="form-control form-control-sm text-end inp-adv-a in-adv3" data-name="ผ่านท่า" data-orig="${parseFloat(r[24])||0}" value="${parseFloat(r[24])||0}" oninput="updateCalcA(this, '${safeBkg}')"></div>
                       <div class="col-4 col-lg-4"><label class="small text-muted mb-0" style="font-size: 0.7rem;">ซ่อมตู้</label><input type="number" class="form-control form-control-sm text-end inp-adv-a in-adv4" data-name="ซ่อมตู้" data-orig="${parseFloat(r[25])||0}" value="${parseFloat(r[25])||0}" oninput="updateCalcA(this, '${safeBkg}')"></div>
                       <div class="col-4 col-lg-4"><label class="small text-muted mb-0" style="font-size: 0.7rem;">ล้างตู้</label><input type="number" class="form-control form-control-sm text-end inp-adv-a in-adv5" data-name="ล้างตู้" data-orig="${parseFloat(r[26])||0}" value="${parseFloat(r[26])||0}" oninput="updateCalcA(this, '${safeBkg}')"></div>
-                      <div class="col-4 col-lg-4"><label class="small text-primary mb-0 fw-bold" style="font-size: 0.7rem;">ค่าชอ</label><input type="number" class="form-control form-control-sm text-end border-primary bg-primary bg-opacity-10 inp-adv-a in-adv6" data-name="ค่าชอ" data-orig="${parseFloat(r[27])||0}" value="${parseFloat(r[27])||0}" oninput="updateCalcA(this, '${safeBkg}')"></div>
+                      <div class="col-4 col-lg-4"><label class="small text-primary fw-bold mb-0" style="font-size: 0.7rem;">ค่าชอ</label><input type="number" class="form-control form-control-sm text-end border-primary bg-primary bg-opacity-10 inp-adv-a in-adv6" data-name="ค่าชอ" data-orig="${parseFloat(r[27])||0}" value="${parseFloat(r[27])||0}" oninput="updateCalcA(this, '${safeBkg}')"></div>
                       
                       <div class="col-12 m-0"><hr class="m-0 opacity-25"></div>
                       
@@ -730,7 +730,6 @@ async function generateInvoiceBulk() {
     return Swal.fire({ icon: 'error', title: 'ไม่สามารถรวมบิลได้', text: 'ต้องเลือกลูกค้า (Bill To) เจ้าเดียวกันเพื่อรวมบิล 1 ใบ' });
   }
 
-  // เรียงใน PDF ยึดตามลำดับการสร้าง
   tempPayloadForPDF.sort((a, b) => {
     let bkgA = (a.booking || '').toString().toLowerCase();
     let bkgB = (b.booking || '').toString().toLowerCase();
@@ -831,14 +830,13 @@ async function confirmGeneratePDF() {
       const parseDate = (d) => d && d.trim() !== '' ? d : null;
       let insertPayload = tempPayloadForPDF.map(item => ({
         create_date: parseDate(item.date), cs: item.cs || null, container_type: item.type || null, mode: item.mode || null, customer: item.jobCustomer || null, load_place: item.load || null, booking: item.booking || null, cy_place: item.cy || null, cy_date: parseDate(item.cy_date), vgm: item.vgm || null, rtn_place: item.rtn || null, rtn_date: parseDate(item.rtn_date), closing_time: item.closing_time || null, agent: item.agent || null, comment: item.remark || null,
-        status: 'วางบิลแล้ว', vehicle_plate: item.plate || null, price: Math.round(item.price) || 0, receive: item.adv1 || 0, return: item.adv2 || 0, extender: Math.round(item.ext1) || 0, drop_tail: Math.round(item.ext2) || 0, lose_time: Math.round(item.ext3) || 0, container_no: item.container || null, repair: String(item.adv4 || 0), cleaning: Math.round(item.adv5) || 0, terminal_charge: Math.round(item.adv6) || 0, total_income: Math.round(item.incTotal) || 0, total_advance: String(item.advTotal || 0), grand_total: Math.round(item.grandTotal) || 0, bill_status: 'วางบิลแล้ว', invoice_no: res.invoiceNo, ref_key: `${item.booking}_${item.container}_${res.invoiceNo}`, user_action: currentUser, bill_date: invDate,
+        status: 'วางบิลแล้ว', vehicle_plate: item.plate || null, price: Math.round(item.price) || 0, receive: item.adv1 || 0, return: item.adv2 || 0, extender: Math.round(item.ext1) || 0, drop_tail: Math.round(item.ext2) || 0, lose_time: Math.round(item.ext3) || 0, container_no: item.container || null, repair: String(item.adv4 || 0), cleaning: Math.round(item.adv5) || 0, terminal_charge: Math.round(item.adv6) || 0, shore: Math.round(item.adv9) || 0, total_income: Math.round(item.incTotal) || 0, total_advance: String(item.advTotal || 0), grand_total: Math.round(item.grandTotal) || 0, bill_status: 'วางบิลแล้ว', invoice_no: res.invoiceNo, ref_key: `${item.booking}_${item.container}_${res.invoiceNo}`, user_action: currentUser, bill_date: invDate,
         other_exp_name_1: item.other1Name || null,
         other_exp_amt_1: item.other1 || 0,
         other_exp_name_2: item.other2Name || null,
         other_exp_amt_2: item.other2 || 0
       }));
 
-      // ลบส่วนที่มีปัญหา (ไม่ต้องยัด created_at ไปที่ invoice_data อีกต่อไป)
       const { error: invError } = await supabaseClient.from('invoice_data').insert(insertPayload);
       if (invError) throw new Error("บันทึกประวัติ Invoice ลงฐานข้อมูลไม่สำเร็จ: " + invError.message);
 
@@ -1162,7 +1160,7 @@ async function openEditInvoiceModal(invoiceNo) {
                   <div class="col-4 col-lg-4"><label class="small text-muted mb-0" style="font-size: 0.7rem;">ผ่านท่า</label><input type="number" class="form-control form-control-sm bg-white e-adv3" value="${itm.terminal_charge || 0}"></div>
                   <div class="col-4 col-lg-4"><label class="small text-muted mb-0" style="font-size: 0.7rem;">ซ่อมตู้</label><input type="number" class="form-control form-control-sm bg-white e-adv4" value="${itm.repair || 0}"></div>
                   <div class="col-4 col-lg-4"><label class="small text-muted mb-0" style="font-size: 0.7rem;">ล้างตู้</label><input type="number" class="form-control form-control-sm bg-white e-adv5" value="${itm.cleaning || 0}"></div>
-                  <div class="col-4 col-lg-4"><label class="small text-primary fw-bold mb-0" style="font-size: 0.7rem;">ค่าชอ</label><input type="number" class="form-control form-control-sm text-end border-primary bg-primary bg-opacity-10 e-adv6" value="${itm.terminal_charge || 0}"></div>
+                  <div class="col-4 col-lg-4"><label class="small text-primary fw-bold mb-0" style="font-size: 0.7rem;">ค่าชอ</label><input type="number" class="form-control form-control-sm text-end border-primary bg-primary bg-opacity-10 e-adv6" value="${itm.shore || 0}"></div>
                   
                   <div class="col-12 m-0"><hr class="m-0 opacity-25"></div>
                   
@@ -1208,7 +1206,7 @@ async function confirmEditInvoice() {
         const { data: oldData, error: fetchErr } = await supabaseClient.from('invoice_data')
           .select('*')
           .eq('invoice_no', invNo)
-          .order('id', { ascending: true }); // กลับมาเรียงตามลำดับตอนสร้าง
+          .order('id', { ascending: true });
           
         if (fetchErr) throw fetchErr;
 
@@ -1291,13 +1289,12 @@ async function confirmEditInvoice() {
           newItemForDB.terminal_charge = a3;
           newItemForDB.repair = String(a4);
           newItemForDB.cleaning = a5;
+          newItemForDB.shore = a6;
           
           newItemForDB.other_exp_name_1 = n1;
           newItemForDB.other_exp_amt_1 = v1;
           newItemForDB.other_exp_name_2 = n2;
           newItemForDB.other_exp_amt_2 = v2;
-          
-          delete newItemForDB.shore; 
 
           newItemForDB.total_income = incTot;
           newItemForDB.total_advance = String(advTot);
@@ -1315,7 +1312,7 @@ async function confirmEditInvoice() {
               booking_date: (cDate && cDate.trim() !== '') ? cDate : null,
               price: p, extender: e1, tail_drop: e2, lose_time: e3,
               receive: String(a1), retrun: String(a2), terminal_charge: a3,
-              repair: String(a4), cleaning: a5,
+              repair: String(a4), cleaning: a5, shore: a6,
               other_exp_name_1: n1, other_exp_amt_1: v1,
               other_exp_name_2: n2, other_exp_amt_2: v2
             })
@@ -1325,7 +1322,6 @@ async function confirmEditInvoice() {
           );
         });
 
-        // ลบการเรียงตามทะเบียนรถออก เปลี่ยนเป็นเรียงตามลำดับตอนสร้าง
         payload.sort((a, b) => a.rowIdx - b.rowIdx);
 
         await Promise.all(planUpdates);
@@ -1483,6 +1479,8 @@ function openReceiptModal(invNo, docType) {
     document.getElementById('modReceiptDate').value = today.getFullYear() + "-" + String(today.getMonth() + 1).padStart(2, '0') + "-" + String(today.getDate()).padStart(2, '0');
   }
   
+  if (document.getElementById('modCustomReceiptNo')) document.getElementById('modCustomReceiptNo').value = '';
+  
   if (btn) btn.disabled = false;
   new bootstrap.Modal(document.getElementById('receiptSettingModal')).show();
 }
@@ -1501,7 +1499,7 @@ async function confirmGenerateReceipt() {
     const { data: bData } = await supabaseClient.from('invoice_data')
       .select('*')
       .eq('invoice_no', currentReceiptInvNo)
-      .order('id', { ascending: true }); // กลับมาเรียงตามลำดับตอนสร้าง
+      .order('id', { ascending: true }); 
       
     if(!bData || bData.length === 0) throw new Error("ไม่พบข้อมูลบิลนี้ในระบบ");
 
@@ -1526,7 +1524,7 @@ async function confirmGenerateReceipt() {
           a_pass: parseFloat(r.terminal_charge)||0, 
           a_repair: parseFloat(r.repair)||0, 
           a_clean: parseFloat(r.cleaning)||0, 
-          a_cho: 0, 
+          a_cho: parseFloat(r.shore)||0, 
           n2: r.other_exp_name_2 || '', 
           v2: parseFloat(r.other_exp_amt_2) || 0 
         } 
@@ -1538,20 +1536,25 @@ async function confirmGenerateReceipt() {
     let mm = String(d.getMonth() + 1).padStart(2, '0');
     let prefix = (currentDocType === 'VOUCHER' ? "VOU" : "REC") + yy + mm;
     
-    let searchCol = currentDocType === 'RECEIPT' ? 'receive_no' : 'voucher_no';
-    const { data: lastDoc } = await supabaseClient.from('invoice_data')
-      .select(searchCol)
-      .ilike(searchCol, `${prefix}%`)
-      .not(searchCol, 'is', null)
-      .order(searchCol, { ascending: false })
-      .limit(1);
+    let customDocNo = document.getElementById('modCustomReceiptNo') ? document.getElementById('modCustomReceiptNo').value.trim() : '';
+    let finalDocNo = customDocNo;
 
-    let nextSeq = 1; 
-    if (lastDoc && lastDoc.length > 0 && lastDoc[0][searchCol]) { 
-      let lastSeqStr = lastDoc[0][searchCol].replace(prefix, '').split('-')[0]; 
-      nextSeq = (parseInt(lastSeqStr, 10) || 0) + 1; 
+    if (!finalDocNo) {
+      let searchCol = currentDocType === 'RECEIPT' ? 'receive_no' : 'voucher_no';
+      const { data: lastDoc } = await supabaseClient.from('invoice_data')
+        .select(searchCol)
+        .ilike(searchCol, `${prefix}%`)
+        .not(searchCol, 'is', null)
+        .order(searchCol, { ascending: false })
+        .limit(1);
+
+      let nextSeq = 1; 
+      if (lastDoc && lastDoc.length > 0 && lastDoc[0][searchCol]) { 
+        let lastSeqStr = lastDoc[0][searchCol].replace(prefix, '').split('-')[0]; 
+        nextSeq = (parseInt(lastSeqStr, 10) || 0) + 1; 
+      }
+      finalDocNo = prefix + String(nextSeq).padStart(3, '0');
     }
-    let finalDocNo = prefix + String(nextSeq).padStart(3, '0');
 
     const res = await callInvAPI('generateReceiptPDF', { 
       invoiceNo: currentReceiptInvNo, 
@@ -1604,10 +1607,6 @@ async function confirmGenerateReceipt() {
     Swal.fire('เกิดข้อผิดพลาด', err.message, 'error'); 
   }
 }
-
-// ------------------------------------------------------------------
-// ฟังก์ชัน Auto-Sync ชื่อช่องยอดอื่น ๆ ระหว่างกล่องตู้คอนเทนเนอร์
-// ------------------------------------------------------------------
 
 function syncOtherNameAudit(sourceInput, className, safeBkg) {
   let val = sourceInput.value;

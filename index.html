@@ -773,6 +773,10 @@
             <label class="small text-muted fw-semibold mb-1">วันที่เอกสาร</label>
             <input type="date" id="modReceiptDate" class="form-control form-control-sm fw-bold bg-white">
           </div>
+          <div class="mb-2">
+            <label class="small text-muted fw-semibold mb-1">อ้างอิงเลขเอกสารเดิม (กรณีแก้ไข)</label>
+            <input type="text" id="modCustomReceiptNo" class="form-control form-control-sm fw-bold text-success bg-white" placeholder="ปล่อยว่างเพื่อสร้างเลขใหม่อัตโนมัติ">
+          </div>
           <div class="card border-0 shadow-sm mb-2 p-2 d-flex flex-row justify-content-between align-items-center" onclick="document.getElementById('recShowDueDate').click()">
             <div><h6 class="fw-bold mb-0 fs-6">แสดงกำหนดชำระเงิน</h6></div>
             <div class="form-check form-switch m-0"><input class="form-check-input" type="checkbox" id="recShowDueDate" checked onclick="event.stopPropagation();"></div>
